@@ -70,3 +70,7 @@ Thumbs.db
 # === fichiers SQLite si tu en génères temporairement ===
 *.sqlite
 *.sqlite3
+
+# Backup files
+*.backup.*
+*.porig

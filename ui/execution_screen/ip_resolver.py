@@ -414,6 +414,11 @@ class IPResolver:
         except ValueError:
             return False
 
+    def is_ip_match(self, ip: str, pattern: str) -> bool:
+        """Vérifie si une IP correspond à un motif avec jokers."""
+        regex_pattern = pattern.replace('.', '\\.').replace('*', '.*')
+        return bool(re.match(f'^{regex_pattern}$', ip))
+
     def _cache_result(self, cache_key: str, ips: List[str]) -> None:
         """
         Met en cache le résultat de résolution d'IPs.
@@ -512,47 +517,25 @@ class IPResolver:
             return 0
 
 
-    # Fonction utilitaire pour compatibilité avec l'ancien code
-    def get_target_ips(config: dict) -> List[str]:
-        """
-        Fonction de compatibilité pour récupérer les IPs cibles.
+# ---------------------------------------------------------------------------
+# Fonctions utilitaires de module pour compatibilité avec l'ancien code
+# ---------------------------------------------------------------------------
 
-        Args:
-            config: Configuration du plugin
-
-        Returns:
-            List[str]: Liste des IPs cibles
-        """
-        resolver = IPResolver.get_instance()
-        return resolver.resolve_ips(config)
+def get_target_ips(config: dict) -> List[str]:
+    """Fonction de compatibilité pour récupérer les IPs cibles."""
+    resolver = IPResolver.get_instance()
+    return resolver.resolve_ips(config)
 
 
-    # Fonction utilitaire pour l'expansion de patterns
-    def expand_ip_pattern(pattern: str) -> List[str]:
-        """
-        Fonction de compatibilité pour l'expansion de patterns IP.
-
-        Args:
-            pattern: Motif d'adresse IP
-
-        Returns:
-            List[str]: Liste des IPs développées
-        """
-        resolver = IPResolver.get_instance()
-        return resolver._expand_ip_pattern(pattern)
+def expand_ip_pattern(pattern: str) -> List[str]:
+    """Fonction de compatibilité pour l'expansion de patterns IP."""
+    resolver = IPResolver.get_instance()
+    return resolver._expand_ip_pattern(pattern)
 
 
-    # Fonction utilitaire pour vérifier la correspondance
-    def is_ip_match(ip: str, pattern: str) -> bool:
-        """
-        Fonction de compatibilité pour vérifier la correspondance IP/pattern.
+def is_ip_match(ip: str, pattern: str) -> bool:
+    """Fonction de compatibilité pour vérifier la correspondance IP/pattern."""
+    resolver = IPResolver.get_instance()
+    return resolver.is_ip_match(ip, pattern)
 
-        Args:
-            ip: Adresse IP
-            pattern: Motif à vérifier
 
-        Returns:
-            bool: True si correspondance
-        """
-        resolver = IPResolver.get_instance()
-        return resolver.is_ip_match(ip, pattern)

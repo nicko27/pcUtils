@@ -76,7 +76,7 @@ class ExecutionWidget(Container):
                 logger.debug(f"Séquence détectée: {self.sequence_name}")
                 break
 
-    async def execute_plugin(self, plugin_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute_plugin(self, plugin_id: str, config: Dict[str, Any]) -> Tuple[bool, str]:
         """
         Exécute un plugin spécifique localement ou via SSH.
 
@@ -85,16 +85,13 @@ class ExecutionWidget(Container):
             config: Configuration du plugin
 
         Returns:
-            Dict[str, Any]: Résultat de l'exécution {success, output}
+            Tuple[bool, str]: Tuple (succès, sortie)
         """
         try:
             # Vérifier si la configuration est valide
             if not isinstance(config, dict):
                 logger.error(f"Configuration invalide pour {plugin_id}: {config}")
-                return {
-                    'success': False,
-                    'output': f"Erreur: Configuration invalide pour le plugin {plugin_id}"
-                }
+                return False, f"Erreur: Configuration invalide pour le plugin {plugin_id}"
 
             # Extraire les informations de base
             plugin_name = self._get_plugin_name(plugin_id, config)
@@ -140,7 +137,7 @@ class ExecutionWidget(Container):
             else:
                 output_msg = f"Erreur d'exécution: {error_msg}"
 
-            return False
+            return False, output_msg
 
     def _get_plugin_name(self, plugin_id: str, config: Dict[str, Any]) -> str:
         """
@@ -194,14 +191,8 @@ class ExecutionWidget(Container):
         """
         if remote_execution:
             logger.debug(f"Création d'un exécuteur SSH pour {plugin_id}")
-            # Configuration pour l'exécuteur SSH
-            ssh_config = {
-                'plugin_name': folder_name,
-                'instance_id': plugin_id.split('_')[-1] if '_' in plugin_id else plugin_id,
-                'config': plugin_config,
-                'ssh_debug': plugin_config.get('ssh_debug', False)
-            }
-            return SSHExecutor(ssh_config)
+            # L'exécuteur SSH ne prend que l'application comme argument
+            return SSHExecutor(self.app if self._app_ref is None else self._app_ref)
         else:
             logger.debug(f"Création d'un exécuteur local pour {plugin_id}")
             return LocalExecutor(self.app if self._app_ref is None else self._app_ref)
@@ -339,22 +330,23 @@ class ExecutionWidget(Container):
             self.show_logs = True
 
     def _update_plugin_status(self, plugin_widget: PluginContainer,
-                             status) -> None:
+                             status: Tuple[bool, str]) -> None:
         """
         Met à jour le statut et la sortie d'un plugin après exécution.
 
         Args:
             plugin_widget: Widget du plugin
+            status: Tuple renvoyé par l'exécuteur (succès, message)
         """
-        statusValue,statusText=status
+        statusValue, statusText = status
         try:
             # Mettre à jour le statut
             if statusValue:
                 plugin_widget.set_status("success")
-                plugin_widget.set_output("OK")
+                plugin_widget.set_output(statusText or "OK")
             else:
                 plugin_widget.set_status("error")
-                plugin_widget.set_output("Erreur")
+                plugin_widget.set_output(statusText or "Erreur")
             # Mettre à jour la sortie
 
             # Mettre à jour la progression

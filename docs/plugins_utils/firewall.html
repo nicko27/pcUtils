@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/firewall.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/firewall.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour gérer le pare-feu système via UFW (Uncomplicated Firewall).
+      Utilise la commande <code>ufw</code>.
+    </p>
+    <p class="dependency-warning">
+      Nécessite que la commande <code>ufw</code> soit installée et configurée sur le système cible.
+      La plupart des opérations nécessitent des privilèges root.
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#FirewallCommands" class="toc-link">FirewallCommands</a></li>
+        <li class="toc-item"><a href="#is_active" class="toc-link">is_active</a></li>
+        <li class="toc-item"><a href="#enable" class="toc-link">enable</a></li>
+        <li class="toc-item"><a href="#disable" class="toc-link">disable</a></li>
+        <li class="toc-item"><a href="#reset" class="toc-link">reset</a></li>
+        <li class="toc-item"><a href="#get_status" class="toc-link">get_status</a></li>
+        <li class="toc-item"><a href="#allow" class="toc-link">allow</a></li>
+        <li class="toc-item"><a href="#deny" class="toc-link">deny</a></li>
+        <li class="toc-item"><a href="#reject" class="toc-link">reject</a></li>
+        <li class="toc-item"><a href="#limit" class="toc-link">limit</a></li>
+        <li class="toc-item"><a href="#delete_rule" class="toc-link">delete_rule</a></li>
+        <li class="toc-item"><a href="#set_default_policy" class="toc-link">set_default_policy</a></li>
+        <li class="toc-item"><a href="#reload" class="toc-link">reload</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="FirewallCommands"><code>FirewallCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour gérer le pare-feu UFW.
+        Hérite de PluginUtilsBase pour l'exécution de commandes.
+      </p>
+    </section>
+
+    <h2 class="section-title">Méthodes de Gestion UFW</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_active"><code>is_active(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie si UFW est actif via <code>ufw status</code>.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si UFW est actif.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="enable"><code>enable(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Active le pare-feu UFW via <code>yes | ufw enable</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'activation a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="disable"><code>disable(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Désactive le pare-feu UFW via <code>ufw disable</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la désactivation a réussi ou si UFW était déjà inactif.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="reset"><code>reset(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Réinitialise UFW à ses paramètres par défaut via <code>yes | ufw reset</code>. Opération dangereuse.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la réinitialisation a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_status"><code>get_status(numbered: bool = True, log_levels: Optional[Dict[str, str]] = None) -> Optional[str]</code></h4>
+      <p class="description">Récupère le statut et les règles UFW via <code>ufw status numbered</code> ou <code>ufw status verbose</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root pour voir toutes les règles.</p>
+      <dl class="param-list">
+        <dt>numbered</dt>
+        <dd><span class="param-type">(bool)</span>: Si True, affiche les règles numérotées. Sinon, utilise 'verbose'. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[str]</span> - La sortie texte de la commande 'ufw status' ou None si erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="allow"><code>allow(rule: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute une règle 'allow' à UFW.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>rule</dt>
+        <dd><span class="param-type">(str)</span>: La règle à ajouter (ex: '22/tcp', 'from 192.168.1.0/24 to any port 80').</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la règle a été ajoutée ou existait déjà.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="deny"><code>deny(rule: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute une règle 'deny' à UFW.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>rule</dt>
+        <dd><span class="param-type">(str)</span>: La règle à ajouter.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la règle a été ajoutée ou existait déjà.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="reject"><code>reject(rule: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute une règle 'reject' à UFW.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>rule</dt>
+        <dd><span class="param-type">(str)</span>: La règle à ajouter.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la règle a été ajoutée ou existait déjà.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="limit"><code>limit(rule: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute une règle 'limit' à UFW (limite les tentatives de connexion depuis une IP).</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>rule</dt>
+        <dd><span class="param-type">(str)</span>: La règle à ajouter (typiquement un port/protocole, ex: 'ssh').</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la règle a été ajoutée ou existait déjà.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="delete_rule"><code>delete_rule(rule_or_number: Union[str, int], log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime une règle UFW par son numéro ou sa spécification via <code>ufw delete</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>rule_or_number</dt>
+        <dd><span class="param-type">(Union[str, int])</span>: Le numéro de la règle (obtenu via <code>ufw status numbered</code>) ou la spécification exacte de la règle.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la règle a été supprimée ou n'existait pas.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_default_policy"><code>set_default_policy(policy: str, direction: str = 'incoming', log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit la politique par défaut pour un trafic donné (entrant, sortant, routé) via <code>ufw default</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>policy</dt>
+        <dd><span class="param-type">(str)</span>: Politique à appliquer ('allow', 'deny', 'reject').</dd>
+        <dt>direction</dt>
+        <dd><span class="param-type">(str)</span>: Direction du trafic ('incoming', 'outgoing', 'routed'). Défaut: 'incoming'.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="reload"><code>reload(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Recharge la configuration UFW sans interrompre les connexions existantes via <code>ufw reload</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le rechargement a réussi. False si UFW est inactif ou en cas d'erreur.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

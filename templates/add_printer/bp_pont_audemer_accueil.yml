@@ -1,0 +1,8 @@
+name: Pont Audemer Accueil
+description:
+variables:
+  printer_ip: 150.27.31.220
+  printer_model: KM301i.yml
+  printer_name: ACCUEIL
+  printer_a3: false
+  printer_all: true

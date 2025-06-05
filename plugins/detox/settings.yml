@@ -1,0 +1,15 @@
+name: Detox
+description: "Nettoyage des noms de fichiers et dossiers incluant les sous dossiers, suppression des espaces et caractères spéciaux"
+version: 1.0
+category: Système
+multiple: true
+remote_execution: false
+icon: 🛠️
+sudo: true
+config_fields:
+  src_dir:
+    type: directory
+    label: Dossier source
+    default: /home
+    required: true
+    not_empty: true

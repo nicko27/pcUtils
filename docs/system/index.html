@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation - pcUtils</title>
+    <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="main-header">
+            <h1>Documentation pcUtils</h1>
+            <p class="subtitle">Guide complet de l'interface utilisateur, des plugins, des séquences et de l'exécution SSH.</p>
+        </header>
+
+        <nav class="main-nav">
+            <h2>Navigation Rapide</h2>
+            <ul>
+                <li><a href="#introduction">Introduction</a></li>
+                <li><a href="#architecture">Architecture Générale</a></li>
+                <li><a href="#plugins">Création de Plugins</a></li>
+                <li><a href="#ssh">Exécution SSH</a></li>
+                <li><a href="#sequences-templates">Séquences & Templates</a></li>
+                <li><a href="#ui-components">Composants UI</a></li>
+            </ul>
+        </nav>
+
+        <section id="introduction" class="content-section">
+            <h2>Introduction</h2>
+            <p>Bienvenue dans la documentation de pcUtils. Cet outil est conçu pour simplifier et automatiser diverses tâches d'administration système grâce à un système de plugins modulaires et une interface utilisateur Textual.</p>
+            <p>Cette documentation vous guidera à travers les différents aspects de l'application :</p>
+            <ul>
+                <li>Comprendre l'<strong>architecture</strong> globale.</li>
+                <li>Apprendre à <strong>créer vos propres plugins</strong> pour étendre les fonctionnalités.</li>
+                <li>Maîtriser l'<strong>exécution à distance</strong> de plugins via SSH.</li>
+                <li>Utiliser les <strong>séquences</strong> pour regrouper des tâches complexes.</li>
+                <li>Simplifier la configuration avec les <strong>templates</strong>.</li>
+                <li>Naviguer et comprendre les différents <strong>écrans et composants de l'interface</strong>.</li>
+            </ul>
+            <p>Utilisez la navigation rapide ou parcourez les sections ci-dessous pour accéder aux informations détaillées.</p>
+        </section>
+
+        <section id="architecture" class="content-section toc-section">
+            <h2><a href="architecture.html">Architecture Générale</a></h2>
+            <p>Découvrez la structure globale de l'application, les principaux modules (<code>app_manager</code>, <code>choice_screen</code>, <code>config_screen</code>, <code>execution_screen</code>, <code>ssh_manager</code>, <code>utils</code>) et comment ils interagissent.</p>
+            <a href="architecture.html" class="read-more">Lire la suite &rarr;</a>
+        </section>
+
+        <section id="plugins" class="content-section toc-section">
+            <h2><a href="plugins.html">Création de Plugins</a></h2>
+            <p>Un guide didactique pour développer vos propres plugins. Apprenez la structure d'un plugin, le rôle crucial du fichier <code>settings.yml</code>, la définition des champs de configuration (<code>config_fields</code>), l'écriture des scripts d'exécution (<code>exec.py</code>/<code>main.sh</code>), et l'utilisation des utilitaires partagés <code>plugins_utils</code>.</p>
+            <a href="plugins.html" class="read-more">Lire la suite &rarr;</a>
+        </section>
+
+        <section id="ssh" class="content-section toc-section">
+            <h2><a href="ssh_execution.html">Exécution SSH</a></h2>
+            <p>Plongez dans le mécanisme d'exécution à distance. Comprenez le rôle de <code>SSHExecutor</code>, le fonctionnement du script <code>ssh_wrapper.py</code> exécuté sur la machine distante, la gestion de l'authentification, la copie des fichiers nécessaires (plugin, <code>plugins_utils</code>), la configuration SSH (<code>ssh_config.yml</code>, <code>ssh_fields.yml</code>) et la gestion des privilèges <code>sudo</code>.</p>
+            <a href="ssh_execution.html" class="read-more">Lire la suite &rarr;</a>
+        </section>
+
+        <section id="sequences-templates" class="content-section toc-section">
+            <h2><a href="sequences_templates.html">Séquences & Templates</a></h2>
+            <p>Apprenez à regrouper des plugins et leurs configurations dans des <strong>séquences</strong> (fichiers YAML dans <code>sequences/</code>) pour automatiser des workflows complexes. Découvrez comment utiliser les <strong>templates</strong> (fichiers YAML dans <code>templates/&lt;plugin&gt;/</code>) pour pré-remplir facilement les configurations de plugins.</p>
+            <a href="sequences_templates.html" class="read-more">Lire la suite &rarr;</a>
+        </section>
+
+        <section id="ui-components" class="content-section toc-section">
+            <h2><a href="ui_components.html">Composants UI</a></h2>
+            <p>Explorez les différents écrans de l'interface utilisateur (<code>Choice</code>, <code>PluginConfig</code>, <code>ExecutionScreen</code>) et comprenez le rôle des widgets clés comme <code>PluginCard</code>, <code>SelectedPluginsPanel</code>, <code>ConfigContainer</code>, <code>PluginConfigContainer</code>, <code>ConfigField</code> et ses dérivés, et <code>PluginContainer</code>.</p>
+            <a href="ui_components.html" class="read-more">Lire la suite &rarr;</a>
+        </section>
+
+        <footer>
+            <p>Documentation pcUtils - Dernière mise à jour : 27 Avril 2025</p>
+        </footer>
+    </div>
+</body>
+</html>

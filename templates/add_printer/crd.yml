@@ -1,0 +1,8 @@
+name: CRD
+description:
+variables:
+  printer_ip: 128.81.2.193
+  printer_model: KM301i.yml
+  printer_name: CRD
+  printer_a3: false
+  printer_all: true

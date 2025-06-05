@@ -1,0 +1,20 @@
+title: Imprimante Epson C4200 Couleurs
+nom: Epson-C4200
+ppdFile: openprinting-ppds:0/ppd/openprinting/Epson/epalc420.ppd
+couleurs: '1'
+rectoverso: '1'
+agraffes: '0'
+a3: '0'
+orecto:
+  - Duplex: None
+orectoverso:
+  - Duplex: DuplexNoTumble
+onb:
+  - EPRendering: None
+ocouleurs:
+  - EPRendering: Color
+oa4:
+  - PageSize: A4
+oa3: ''
+mode: model
+socket: lpd://

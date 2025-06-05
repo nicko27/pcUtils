@@ -1,0 +1,24 @@
+name: Séquence remplacement imprimante(s)
+description: Séquence pour supprimer une ou des imprimantes puis en installer une
+shortcut:
+  - remp_imp
+  - ri
+plugins:
+  - name: delete_printer
+    config:
+      printer_ip: 192.168.1.223
+      printer_all: false
+
+  - name: add_printer
+    config:
+      printer_ip: 192.168.1.222
+      printer_model: EC4200
+      printer_name: Premiere
+      printer_a3: false
+
+  - name: add_printer
+    config:
+      printer_ip: 192.168.1.221
+      printer_model: KM227
+      printer_name: Autre
+      printer_a3: false

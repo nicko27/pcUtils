@@ -1,0 +1,30 @@
+name: Imprimantes - Suppression
+description: Suppression d'une ou plusieurs imprimantes en fonction de l'IP
+version: 1.0
+category: Système
+multiple: true
+icon: 🖨
+remote_execution: true
+needs_sudo: true
+config_fields:
+  printer_all:
+    type: checkbox
+    label: Supprimer toutes les imprimantes
+    default: true
+    required: true
+
+  printer_ip:
+    type: ip
+    label: Adresse IP
+    description: Adresse IP de l'imprimante
+    required: true
+    not_empty: true
+    dynamic_default:
+      script: get_ip.py
+      function: get_local_ip
+      value_key: ip
+      path: "@[scripts]"
+    enabled_if:
+      conditions:
+        - field_id: "printer_all"
+          required_value: false

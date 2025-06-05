@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/dovecot.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/dovecot.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour manipuler les fichiers de configuration Dovecot.
+      Hérite de ConfigFileCommands pour réutiliser les fonctionnalités de gestion de fichiers.
+      Implémente un modèle cohérent "lire, modifier, écrire" pour les configurations Dovecot,
+      incluant la gestion des paramètres globaux, mail, plugins (quota, acl, sieve), namespaces et ACLs.
+    </p>
+    <p class="dependency-warning">
+      Dépend de <code>plugins_utils.config_files</code>. Utilise les commandes système sous-jacentes de <code>ConfigFileCommands</code> (<code>cat</code>, <code>cp</code>, <code>chmod</code>, <code>chown</code>) si sudo est nécessaire pour accéder aux fichiers de configuration Dovecot (typiquement dans <code>/etc/dovecot/</code>).
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#DovecotCommands" class="toc-link">DovecotCommands</a></li>
+        <li class="toc-item"><a href="#get_config_path" class="toc-link">get_config_path</a></li>
+        <li class="toc-item"><a href="#read_config" class="toc-link">read_config</a></li>
+        <li class="toc-item"><a href="#parse_dovecot_config" class="toc-link">parse_dovecot_config</a></li>
+        <li class="toc-item"><a href="#write_config" class="toc-link">write_config</a></li>
+        <li class="toc-item"><a href="#generate_config_string" class="toc-link">generate_config_string</a></li>
+        <li class="toc-item"><a href="#clear_cache" class="toc-link">clear_cache</a></li>
+        <li class="toc-item"><a href="#get_global_setting" class="toc-link">get_global_setting</a></li>
+        <li class="toc-item"><a href="#set_global_setting" class="toc-link">set_global_setting</a></li>
+        <li class="toc-item"><a href="#get_mail_setting" class="toc-link">get_mail_setting</a></li>
+        <li class="toc-item"><a href="#set_mail_setting" class="toc-link">set_mail_setting</a></li>
+        <li class="toc-item"><a href="#get_mail_plugins" class="toc-link">get_mail_plugins</a></li>
+        <li class="toc-item"><a href="#set_mail_plugins" class="toc-link">set_mail_plugins</a></li>
+        <li class="toc-item"><a href="#add_mail_plugin" class="toc-link">add_mail_plugin</a></li>
+        <li class="toc-item"><a href="#remove_mail_plugin" class="toc-link">remove_mail_plugin</a></li>
+        <li class="toc-item"><a href="#get_plugin_setting" class="toc-link">get_plugin_setting</a></li>
+        <li class="toc-item"><a href="#set_plugin_setting" class="toc-link">set_plugin_setting</a></li>
+        <li class="toc-item"><a href="#get_namespace" class="toc-link">get_namespace</a></li>
+        <li class="toc-item"><a href="#add_namespace" class="toc-link">add_namespace</a></li>
+        <li class="toc-item"><a href="#update_namespace" class="toc-link">update_namespace</a></li>
+        <li class="toc-item"><a href="#delete_namespace" class="toc-link">delete_namespace</a></li>
+        <li class="toc-item"><a href="#create_public_namespace" class="toc-link">create_public_namespace</a></li>
+        <li class="toc-item"><a href="#uncomment_namespace" class="toc-link">uncomment_namespace</a></li>
+        <li class="toc-item"><a href="#comment_namespace" class="toc-link">comment_namespace</a></li>
+        <li class="toc-item"><a href="#create_namespace_from_template" class="toc-link">create_namespace_from_template</a></li>
+        <li class="toc-item"><a href="#read_acl_file" class="toc-link">read_acl_file</a></li>
+        <li class="toc-item"><a href="#write_acl_file" class="toc-link">write_acl_file</a></li>
+        <li class="toc-item"><a href="#get_acl_entries" class="toc-link">get_acl_entries</a></li>
+        <li class="toc-item"><a href="#add_acl_entry" class="toc-link">add_acl_entry</a></li>
+        <li class="toc-item"><a href="#update_acl_entry" class="toc-link">update_acl_entry</a></li>
+        <li class="toc-item"><a href="#delete_acl_entry" class="toc-link">delete_acl_entry</a></li>
+        <li class="toc-item"><a href="#delete_all_mailbox_acls" class="toc-link">delete_all_mailbox_acls</a></li>
+        <li class="toc-item"><a href="#enable_acl_plugin" class="toc-link">enable_acl_plugin</a></li>
+        <li class="toc-item"><a href="#configure_acl_settings" class="toc-link">configure_acl_settings</a></li>
+        <li class="toc-item"><a href="#get_quota_rule" class="toc-link">get_quota_rule</a></li>
+        <li class="toc-item"><a href="#set_quota_rule" class="toc-link">set_quota_rule</a></li>
+        <li class="toc-item"><a href="#enable_quota" class="toc-link">enable_quota</a></li>
+        <li class="toc-item"><a href="#configure_quota_backend" class="toc-link">configure_quota_backend</a></li>
+        <li class="toc-item"><a href="#set_quota_warning" class="toc-link">set_quota_warning</a></li>
+        <li class="toc-item"><a href="#set_quota_exceeded_message" class="toc-link">set_quota_exceeded_message</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="DovecotCommands"><code>DovecotCommands(ConfigFileCommands)</code></h3>
+      <p class="description">
+        Classe pour manipuler les fichiers de configuration Dovecot.
+        Hérite de <code>ConfigFileCommands</code> pour la gestion de fichiers.
+        Permet une manipulation cohérente des configurations avec le modèle "lire, modifier, écrire".
+      </p>
+      <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+          <dt>config_dir</dt>
+          <dd><span class="param-type">(str)</span>: Répertoire de base des configurations Dovecot. Défaut: '/etc/dovecot'.</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Méthodes de Gestion de Configuration</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_config_path"><code>get_config_path(config_type: str, log_levels: Optional[Dict[str, str]] = None) -> Path</code></h4>
+      <p class="description">Obtient le chemin complet d'un fichier de configuration spécifique ('main', 'mail', 'auth', '10-ssl.conf', etc.) ou un chemin direct.</p>
+      <dl class="param-list">
+        <dt>config_type</dt>
+        <dd><span class="param-type">(str)</span>: Type de configuration ou chemin relatif/absolu.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Path</span> - Chemin complet du fichier.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="read_config"><code>read_config(config_type: str, force_reload: bool = False, log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict]</code></h4>
+      <p class="description">Lit et parse un fichier de configuration Dovecot. Utilise un cache interne.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>config_type</dt>
+        <dd><span class="param-type">(str)</span>: Type de configuration ou chemin.</dd>
+        <dt>force_reload</dt>
+        <dd><span class="param-type">(bool)</span>: Forcer la relecture même si en cache. Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict]</span> - Structure de configuration parsée ou None si erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="parse_dovecot_config"><code>parse_dovecot_config(content: Union[str, List[str]], log_levels: Optional[Dict[str, str]] = None) -> Dict[str, Any]</code></h4>
+      <p class="description">Parse le contenu d'un fichier de configuration Dovecot (avec blocs imbriqués) en une structure hiérarchique.</p>
+      <dl class="param-list">
+        <dt>content</dt>
+        <dd><span class="param-type">(Union[str, List[str]])</span>: Contenu du fichier (chaîne ou liste de lignes).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Dict[str, Any]</span> - Structure hiérarchique représentant la configuration.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="write_config"><code>write_config(config_type: str, config: Dict, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Écrit une structure de configuration (dictionnaire Python) dans un fichier de configuration Dovecot.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>config_type</dt>
+        <dd><span class="param-type">(str)</span>: Type de configuration ou chemin.</dd>
+        <dt>config</dt>
+        <dd><span class="param-type">(Dict)</span>: Structure de configuration à écrire.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'écriture réussit.
+      </div>
+    </section>
+
+     <section class="method-section">
+      <h4 class="method-title" id="generate_config_string"><code>generate_config_string(config: Dict[str, Any], indent_level: int = 0, log_levels: Optional[Dict[str, str]] = None) -> str</code></h4>
+      <p class="description">Génère une représentation textuelle formatée d'une configuration Dovecot à partir d'un dictionnaire.</p>
+      <dl class="param-list">
+        <dt>config</dt>
+        <dd><span class="param-type">(Dict[str, Any])</span>: Dictionnaire de configuration.</dd>
+        <dt>indent_level</dt>
+        <dd><span class="param-type">(int)</span>: Niveau d'indentation initial. Défaut: 0.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">str</span> - Représentation textuelle formatée.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="clear_cache"><code>clear_cache(config_type: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> None</code></h4>
+      <p class="description">Vide le cache des configurations lues (pour un type spécifique ou toutes).</p>
+       <dl class="param-list">
+        <dt>config_type</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Type de configuration à vider (ou None pour tout vider).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Gestion des Paramètres</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_global_setting"><code>get_global_setting(setting_name: str, default: Any = None, log_levels: Optional[Dict[str, str]] = None) -> Any</code></h4>
+      <p class="description">Récupère un paramètre global dans la configuration principale (<code>dovecot.conf</code>).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>setting_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paramètre.</dd>
+        <dt>default</dt>
+        <dd><span class="param-type">(Any)</span>: Valeur par défaut. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Any</span> - Valeur du paramètre ou défaut.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_global_setting"><code>set_global_setting(setting_name: str, value: Any, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit un paramètre global dans la configuration principale (<code>dovecot.conf</code>).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier.</p>
+       <dl class="param-list">
+        <dt>setting_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paramètre.</dd>
+        <dt>value</dt>
+        <dd><span class="param-type">(Any)</span>: Nouvelle valeur.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+     <section class="method-section">
+      <h4 class="method-title" id="get_mail_setting"><code>get_mail_setting(setting_name: str, default: Any = None, log_levels: Optional[Dict[str, str]] = None) -> Any</code></h4>
+      <p class="description">Récupère un paramètre dans la configuration mail (<code>10-mail.conf</code> par défaut).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>setting_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paramètre.</dd>
+        <dt>default</dt>
+        <dd><span class="param-type">(Any)</span>: Valeur par défaut. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Any</span> - Valeur du paramètre ou défaut.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_mail_setting"><code>set_mail_setting(setting_name: str, value: Any, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit un paramètre dans la configuration mail (<code>10-mail.conf</code> par défaut).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier.</p>
+       <dl class="param-list">
+        <dt>setting_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paramètre.</dd>
+        <dt>value</dt>
+        <dd><span class="param-type">(Any)</span>: Nouvelle valeur.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion des Plugins Mail</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_mail_plugins"><code>get_mail_plugins(log_levels: Optional[Dict[str, str]] = None) -> List[str]</code></h4>
+      <p class="description">Récupère la liste des plugins mail activés (paramètre <code>mail_plugins</code> dans <code>10-mail.conf</code>).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[str]</span> - Liste des plugins activés.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_mail_plugins"><code>set_mail_plugins(plugins: List[str], backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit la liste des plugins mail activés.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>plugins</dt>
+        <dd><span class="param-type">(List[str])</span>: Liste des plugins à activer.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_mail_plugin"><code>add_mail_plugin(plugin_name: str, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute un plugin mail s'il n'est pas déjà activé.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>plugin_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du plugin à ajouter (ex: 'quota', 'acl').</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="remove_mail_plugin"><code>remove_mail_plugin(plugin_name: str, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime un plugin mail s'il est activé.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+       <dl class="param-list">
+        <dt>plugin_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du plugin à supprimer.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion des Paramètres de Plugin</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_plugin_setting"><code>get_plugin_setting(plugin_type: str, setting_name: str, default: Any = None, log_levels: Optional[Dict[str, str]] = None) -> Any</code></h4>
+      <p class="description">Récupère un paramètre dans la configuration d'un plugin spécifique (ex: 'quota', 'acl', 'sieve'). Cherche dans la section <code>plugin { ... }</code> du fichier correspondant.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier de configuration du plugin.</p>
+      <dl class="param-list">
+        <dt>plugin_type</dt>
+        <dd><span class="param-type">(str)</span>: Type de plugin (ex: 'quota', 'acl', 'sieve'). Utilisé pour trouver le fichier de conf.</dd>
+        <dt>setting_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paramètre à récupérer.</dd>
+        <dt>default</dt>
+        <dd><span class="param-type">(Any)</span>: Valeur par défaut. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Any</span> - Valeur du paramètre ou défaut.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_plugin_setting"><code>set_plugin_setting(plugin_type: str, setting_name: str, value: Any, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit un paramètre dans la configuration d'un plugin spécifique (dans la section <code>plugin { ... }</code>).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier de configuration du plugin.</p>
+      <dl class="param-list">
+        <dt>plugin_type</dt>
+        <dd><span class="param-type">(str)</span>: Type de plugin.</dd>
+        <dt>setting_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paramètre à définir.</dd>
+        <dt>value</dt>
+        <dd><span class="param-type">(Any)</span>: Nouvelle valeur.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion des Namespaces</h2>
+
+     <section class="method-section">
+      <h4 class="method-title" id="get_namespace"><code>get_namespace(namespace_name: str, config_type: str = 'mail', log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict]</code></h4>
+      <p class="description">Récupère la configuration d'un namespace spécifique.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+       <dl class="param-list">
+        <dt>namespace_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du namespace (ex: 'INBOX', 'PUBLIC_FINANCE').</dd>
+        <dt>config_type</dt>
+        <dd><span class="param-type">(str)</span>: Fichier de configuration où chercher. Défaut: 'mail'.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict]</span> - Dictionnaire de configuration du namespace ou None si non trouvé/erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_namespace"><code>add_namespace(namespace_name: str, namespace_config: Dict, config_type: str = 'mail', backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute un nouveau namespace à un fichier de configuration.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+       <dl class="param-list">
+        <dt>namespace_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du namespace à ajouter.</dd>
+        <dt>namespace_config</dt>
+        <dd><span class="param-type">(Dict)</span>: Dictionnaire contenant la configuration du namespace.</dd>
+        <dt>config_type</dt>
+        <dd><span class="param-type">(str)</span>: Fichier de configuration cible. Défaut: 'mail'.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="update_namespace"><code>update_namespace(namespace_name: str, namespace_config: Dict, config_type: str = 'mail', backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Met à jour la configuration d'un namespace existant (remplace la configuration existante).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>namespace_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du namespace à mettre à jour.</dd>
+        <dt>namespace_config</dt>
+        <dd><span class="param-type">(Dict)</span>: Nouvelle configuration complète du namespace.</dd>
+        <dt>config_type</dt>
+        <dd><span class="param-type">(str)</span>: Fichier de configuration cible. Défaut: 'mail'.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="delete_namespace"><code>delete_namespace(namespace_name: str, config_type: str = 'mail', backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime un namespace d'un fichier de configuration.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+       <dl class="param-list">
+        <dt>namespace_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du namespace à supprimer.</dd>
+        <dt>config_type</dt>
+        <dd><span class="param-type">(str)</span>: Fichier de configuration cible. Défaut: 'mail'.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="create_public_namespace"><code>create_public_namespace(unite: str, location: Optional[str] = None, config_type: str = 'mail', backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Crée un namespace public standard pour une unité spécifique.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>unite</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'unité (ex: "FINANCE"). Utilisé pour le nom et le chemin.</dd>
+        <dt>location</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin de stockage (ex: "/partage/Mail_archive/FINANCE"). Auto-généré si None.</dd>
+        <dt>config_type</dt>
+        <dd><span class="param-type">(str)</span>: Fichier de configuration cible. Défaut: 'mail'.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="uncomment_namespace"><code>uncomment_namespace(namespace_pattern: str, config_path: Optional[str] = None, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Décommente un bloc namespace entier dans un fichier de configuration. Manipule le texte brut.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>namespace_pattern</dt>
+        <dd><span class="param-type">(str)</span>: Motif (regex) pour identifier le nom du namespace commenté (ex: "PUBLIC_FINANCE").</dd>
+        <dt>config_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin du fichier ou type ('mail'). Défaut: 'mail'.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="comment_namespace"><code>comment_namespace(namespace_name: str, config_path: Optional[str] = None, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Commente un bloc namespace entier dans un fichier de configuration. Manipule le texte brut.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>namespace_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom exact du namespace à commenter.</dd>
+        <dt>config_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin du fichier ou type ('mail'). Défaut: 'mail'.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="create_namespace_from_template"><code>create_namespace_from_template(template_name: str, new_name: str, replacements: Dict[str, str], config_path: Optional[str] = None, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Crée un nouveau namespace en clonant un namespace existant et en appliquant des remplacements.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>template_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du namespace servant de modèle.</dd>
+        <dt>new_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du nouveau namespace à créer.</dd>
+        <dt>replacements</dt>
+        <dd><span class="param-type">(Dict[str, str])</span>: Dictionnaire {pattern: replacement} pour les substitutions dans la configuration clonée.</dd>
+        <dt>config_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin du fichier ou type ('mail'). Défaut: 'mail'.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion des ACLs Dovecot</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="read_acl_file"><code>read_acl_file(acl_path: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> List[Tuple[str, str, str, str]]</code></h4>
+      <p class="description">Lit un fichier d'ACL Dovecot (<code>dovecot-acl</code> par défaut).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>acl_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin du fichier ACL ou None pour utiliser le défaut.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[Tuple[str, str, str, str]]</span> - Liste de tuples (mailbox, identifier, rights, comment).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="write_acl_file"><code>write_acl_file(acl_entries: List[Tuple[str, str, str, str]], acl_path: Optional[str] = None, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Écrit une liste de règles ACL dans un fichier.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>acl_entries</dt>
+        <dd><span class="param-type">(List[Tuple[str, str, str, str]])</span>: Liste des entrées ACL.</dd>
+        <dt>acl_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin du fichier ACL ou None pour utiliser le défaut.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_acl_entries"><code>get_acl_entries(mailbox: Optional[str] = None, acl_path: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> List[Tuple[str, str, str, str]]</code></h4>
+      <p class="description">Récupère les entrées ACL, éventuellement filtrées par boîte aux lettres.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>mailbox</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Nom de la boîte aux lettres pour filtrer ou None pour toutes.</dd>
+        <dt>acl_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin du fichier ACL ou None pour utiliser le défaut.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[Tuple[str, str, str, str]]</span> - Liste des entrées ACL filtrées ou non.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_acl_entry"><code>add_acl_entry(mailbox: str, identifier: str, rights: str, comment: str = "", acl_path: Optional[str] = None, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute une entrée ACL ou la met à jour si elle existe déjà.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>mailbox</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la boîte aux lettres (ex: "Archives_FINANCE").</dd>
+        <dt>identifier</dt>
+        <dd><span class="param-type">(str)</span>: Identifiant (ex: "group=finance", "user=toto").</dd>
+        <dt>rights</dt>
+        <dd><span class="param-type">(str)</span>: Droits d'accès (ex: "lrwts", "lr").</dd>
+        <dt>comment</dt>
+        <dd><span class="param-type">(str)</span>: Commentaire optionnel. Défaut: "".</dd>
+        <dt>acl_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin du fichier ACL ou None pour utiliser le défaut.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="update_acl_entry"><code>update_acl_entry(mailbox: str, identifier: str, rights: str, comment: Optional[str] = None, acl_path: Optional[str] = None, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Met à jour une entrée ACL existante.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>mailbox</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la boîte aux lettres.</dd>
+        <dt>identifier</dt>
+        <dd><span class="param-type">(str)</span>: Identifiant de l'entrée à modifier.</dd>
+        <dt>rights</dt>
+        <dd><span class="param-type">(str)</span>: Nouveaux droits d'accès.</dd>
+        <dt>comment</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Nouveau commentaire ou None pour conserver l'existant.</dd>
+        <dt>acl_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin du fichier ACL ou None pour utiliser le défaut.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="delete_acl_entry"><code>delete_acl_entry(mailbox: str, identifier: str, acl_path: Optional[str] = None, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime une entrée ACL spécifique.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+       <dl class="param-list">
+        <dt>mailbox</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la boîte aux lettres.</dd>
+        <dt>identifier</dt>
+        <dd><span class="param-type">(str)</span>: Identifiant de l'entrée à supprimer.</dd>
+        <dt>acl_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin du fichier ACL ou None pour utiliser le défaut.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="delete_all_mailbox_acls"><code>delete_all_mailbox_acls(mailbox: str, acl_path: Optional[str] = None, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime toutes les entrées ACL pour une boîte aux lettres donnée.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+       <dl class="param-list">
+        <dt>mailbox</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la boîte aux lettres dont les ACLs doivent être supprimées.</dd>
+        <dt>acl_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin du fichier ACL ou None pour utiliser le défaut.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="enable_acl_plugin"><code>enable_acl_plugin(backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Active le plugin ACL dans la configuration mail.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier <code>10-mail.conf</code>.</p>
+      <dl class="param-list">
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="configure_acl_settings"><code>configure_acl_settings(acl_dir: Optional[str] = None, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Configure les paramètres de base du plugin ACL (active le plugin et définit optionnellement <code>acl_dir</code>).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire les fichiers de configuration mail et acl.</p>
+      <dl class="param-list">
+        <dt>acl_dir</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Répertoire pour les fichiers ACL ou None pour ne pas le définir.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion des Quotas</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_quota_rule"><code>get_quota_rule(rule_name: str = 'quota_rule', default: Any = None, log_levels: Optional[Dict[str, str]] = None) -> Any</code></h4>
+      <p class="description">Récupère une règle de quota (ex: 'quota_rule', 'quota_rule2') depuis la configuration du plugin quota.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier <code>90-quota.conf</code>.</p>
+      <dl class="param-list">
+        <dt>rule_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la règle. Défaut: 'quota_rule'.</dd>
+        <dt>default</dt>
+        <dd><span class="param-type">(Any)</span>: Valeur par défaut. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Any</span> - Valeur de la règle ou défaut.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_quota_rule"><code>set_quota_rule(rule_value: str, rule_name: str = 'quota_rule', backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit une règle de quota dans la configuration du plugin quota.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier <code>90-quota.conf</code>.</p>
+      <dl class="param-list">
+        <dt>rule_value</dt>
+        <dd><span class="param-type">(str)</span>: Valeur de la règle (ex: '*:storage=1G').</dd>
+        <dt>rule_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la règle. Défaut: 'quota_rule'.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="enable_quota"><code>enable_quota(backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Active le plugin de quota dans la configuration mail.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier <code>10-mail.conf</code>.</p>
+      <dl class="param-list">
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="configure_quota_backend"><code>configure_quota_backend(backend_type: str = 'maildir', desc: str = 'User quota', backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Configure le backend de quota (active le plugin et définit le paramètre <code>quota</code>).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire les fichiers <code>10-mail.conf</code> et <code>90-quota.conf</code>.</p>
+      <dl class="param-list">
+        <dt>backend_type</dt>
+        <dd><span class="param-type">(str)</span>: Type de backend ('maildir', 'dict', 'fs', etc.). Défaut: 'maildir'.</dd>
+        <dt>desc</dt>
+        <dd><span class="param-type">(str)</span>: Description du quota. Défaut: 'User quota'.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_quota_warning"><code>set_quota_warning(threshold: int, command: str, user_placeholder: bool = True, warning_num: int = 1, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Configure un message d'avertissement de quota (<code>quota_warning</code>, <code>quota_warning2</code>, etc.).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier <code>90-quota.conf</code>.</p>
+      <dl class="param-list">
+        <dt>threshold</dt>
+        <dd><span class="param-type">(int)</span>: Seuil en pourcentage (ex: 95).</dd>
+        <dt>command</dt>
+        <dd><span class="param-type">(str)</span>: Commande à exécuter (sans %u si <code>user_placeholder=True</code>).</dd>
+        <dt>user_placeholder</dt>
+        <dd><span class="param-type">(bool)</span>: Ajouter %u à la fin de la commande. Défaut: True.</dd>
+        <dt>warning_num</dt>
+        <dd><span class="param-type">(int)</span>: Numéro de l'avertissement (1, 2, ...). Défaut: 1.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_quota_exceeded_message"><code>set_quota_exceeded_message(message: str, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Configure le message affiché quand le quota est dépassé (<code>quota_exceeded_message</code>).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier <code>90-quota.conf</code>.</p>
+      <dl class="param-list">
+        <dt>message</dt>
+        <dd><span class="param-type">(str)</span>: Message à afficher.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

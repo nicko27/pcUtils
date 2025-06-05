@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/text_utils.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/text_utils.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour les opérations courantes sur les chaînes de caractères et le texte.
+      Fournit des fonctions pour le parsing simple, la recherche et le nettoyage de texte.
+    </p>
+    <p class="dependency-warning">
+      Utilise les modules Python standard : <code>os</code>, <code>re</code>, <code>typing</code>.
+      Hérite de <code>PluginsUtilsBase</code> mais n'utilise pas directement ses fonctionnalités d'exécution de commande.
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#TextUtils" class="toc-link">TextUtils</a></li>
+        <li class="toc-item"><a href="#parse_key_value" class="toc-link">parse_key_value</a></li>
+        <li class="toc-item"><a href="#parse_table" class="toc-link">parse_table</a></li>
+        <li class="toc-item"><a href="#extract_sections" class="toc-link">extract_sections</a></li>
+        <li class="toc-item"><a href="#advanced_regex_search" class="toc-link">advanced_regex_search</a></li>
+        <li class="toc-item"><a href="#sanitize_filename" class="toc-link">sanitize_filename</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="TextUtils"><code>TextUtils(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour les opérations courantes sur le texte.
+        Hérite de PluginUtilsBase principalement pour la journalisation.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Méthodes Principales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="parse_key_value"><code>parse_key_value(text: str, delimiter_pattern: str = r'\s*[:=]\s*', comment_char: Optional[str] = '#', strip_quotes: bool = True, log_levels: Optional[Dict[str, str]] = None) -> Dict[str, str]</code></h4>
+      <p class="description">Parse un texte multiligne contenant des paires clé-valeur.</p>
+      <dl class="param-list">
+        <dt>text</dt>
+        <dd><span class="param-type">(str)</span>: La chaîne de caractères à parser.</dd>
+        <dt>delimiter_pattern</dt>
+        <dd><span class="param-type">(str)</span>: Regex définissant le(s) délimiteur(s) entre clé et valeur. Défaut: <code>r'\s*[:=]\s*'</code>.</dd>
+        <dt>comment_char</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Caractère indiquant un commentaire. Défaut: '#'.</dd>
+        <dt>strip_quotes</dt>
+        <dd><span class="param-type">(bool)</span>: Supprimer les guillemets simples ou doubles entourant les valeurs. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Dict[str, str]</span> - Dictionnaire des paires clé-valeur trouvées.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="parse_table"><code>parse_table(text: str, delimiter_pattern: str = r'\s+', header_lines: int = 1, comment_char: Optional[str] = '#', min_columns: int = 2, log_levels: Optional[Dict[str, str]] = None) -> List[Dict[str, str]]</code></h4>
+      <p class="description">Parse un texte tabulaire en une liste de dictionnaires, en utilisant la dernière ligne d'en-tête pour les clés.</p>
+      <dl class="param-list">
+        <dt>text</dt>
+        <dd><span class="param-type">(str)</span>: La chaîne de caractères contenant le tableau.</dd>
+        <dt>delimiter_pattern</dt>
+        <dd><span class="param-type">(str)</span>: Regex pour séparer les colonnes. Défaut: <code>r'\s+'</code> (un ou plusieurs espaces).</dd>
+        <dt>header_lines</dt>
+        <dd><span class="param-type">(int)</span>: Nombre de lignes d'en-tête. La dernière est utilisée pour les clés. Défaut: 1.</dd>
+        <dt>comment_char</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Caractère indiquant une ligne de commentaire. Défaut: '#'.</dd>
+        <dt>min_columns</dt>
+        <dd><span class="param-type">(int)</span>: Nombre minimum de colonnes attendues pour une ligne de données valide. Défaut: 2.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[Dict[str, str]]</span> - Liste de dictionnaires, où chaque dictionnaire représente une ligne de données. Retourne une liste vide si échec ou pas de données.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="extract_sections"><code>extract_sections(text: str, section_start_pattern: str, include_start_line: bool = False, log_levels: Optional[Dict[str, str]] = None) -> Dict[str, str]</code></h4>
+      <p class="description">Extrait des sections d'un texte basé sur un motif regex de début de section. Chaque section s'étend jusqu'au prochain motif de début ou la fin du texte.</p>
+      <dl class="param-list">
+        <dt>text</dt>
+        <dd><span class="param-type">(str)</span>: Le texte complet à analyser.</dd>
+        <dt>section_start_pattern</dt>
+        <dd><span class="param-type">(str)</span>: Regex pour identifier le début d'une section. Le groupe de capture 1 (s'il existe) sera utilisé comme clé de section, sinon la ligne entière.</dd>
+        <dt>include_start_line</dt>
+        <dd><span class="param-type">(bool)</span>: Inclure la ligne de début dans le contenu de la section. Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Dict[str, str]</span> - Dictionnaire où les clés sont les identifiants de section et les valeurs sont le contenu textuel de chaque section.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="advanced_regex_search"><code>advanced_regex_search(text: str, pattern: Union[str, Pattern], group_names: Optional[List[str]] = None, find_all: bool = True, log_levels: Optional[Dict[str, str]] = None) -> Union[Optional[Dict[str, str]], List[Dict[str, str]], None]</code></h4>
+      <p class="description">Effectue une recherche regex avancée et retourne les résultats structurés (groupes capturés) sous forme de dictionnaires.</p>
+      <dl class="param-list">
+        <dt>text</dt>
+        <dd><span class="param-type">(str)</span>: Texte dans lequel chercher.</dd>
+        <dt>pattern</dt>
+        <dd><span class="param-type">(Union[str, Pattern])</span>: Expression régulière (chaîne ou objet <code>re.Pattern</code> compilé).</dd>
+        <dt>group_names</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste optionnelle de noms à assigner aux groupes de capture (doit correspondre au nombre de groupes). Si None, utilise les noms définis dans le pattern (<code>?P&lt;name&gt;...</code>) ou des noms numérotés ('group_1', ...).</dd>
+        <dt>find_all</dt>
+        <dd><span class="param-type">(bool)</span>: Si True, retourne toutes les correspondances (liste de dicts). Si False, retourne seulement la première correspondance (dict) ou None. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Union[Optional[Dict], List[Dict], None]</span> - Liste de dictionnaires (si <code>find_all=True</code>), un dictionnaire (si <code>find_all=False</code> et correspondance trouvée), ou None (si pas de correspondance ou erreur regex). Chaque dictionnaire contient les groupes capturés et 'full_match'.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="sanitize_filename"><code>sanitize_filename(filename: str, replacement: str = '_', log_levels: Optional[Dict[str, str]] = None) -> str</code></h4>
+      <p class="description">Nettoie une chaîne pour l'utiliser comme nom de fichier valide en remplaçant les caractères non alphanumériques (sauf '.', '-', '_') par un caractère de remplacement.</p>
+      <dl class="param-list">
+        <dt>filename</dt>
+        <dd><span class="param-type">(str)</span>: Nom de fichier potentiel.</dd>
+        <dt>replacement</dt>
+        <dd><span class="param-type">(str)</span>: Caractère utilisé pour remplacer les caractères invalides. Défaut: '_'.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">str</span> - Nom de fichier nettoyé.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/database.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/database.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour les interactions de base avec les SGBD MySQL/MariaDB et PostgreSQL.
+      Utilise les outils clients en ligne de commande (<code>mysql</code>, <code>psql</code>, <code>mysqldump</code>, <code>pg_dump</code>, <code>createdb</code>, <code>dropdb</code>, <code>createuser</code>, <code>dropuser</code>).
+    </p>
+    <p class="dependency-warning">
+      Nécessite que les paquets clients appropriés soient installés (ex: 'mysql-client', 'postgresql-client') pour que les commandes correspondantes (<code>mysql</code>, <code>psql</code>, etc.) soient disponibles.
+      Dépendance optionnelle sur <code>plugins_utils.services</code> pour la détection du type de SGBD.
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#DatabaseCommands" class="toc-link">DatabaseCommands</a></li>
+        <li class="toc-item"><a href="#detect_db_type" class="toc-link">detect_db_type</a></li>
+        <li class="toc-item"><a href="#mysql_db_exists" class="toc-link">mysql_db_exists</a></li>
+        <li class="toc-item"><a href="#mysql_user_exists" class="toc-link">mysql_user_exists</a></li>
+        <li class="toc-item"><a href="#mysql_create_db" class="toc-link">mysql_create_db</a></li>
+        <li class="toc-item"><a href="#mysql_drop_db" class="toc-link">mysql_drop_db</a></li>
+        <li class="toc-item"><a href="#mysql_create_user" class="toc-link">mysql_create_user</a></li>
+        <li class="toc-item"><a href="#mysql_drop_user" class="toc-link">mysql_drop_user</a></li>
+        <li class="toc-item"><a href="#mysql_grant_privileges" class="toc-link">mysql_grant_privileges</a></li>
+        <li class="toc-item"><a href="#mysql_set_root_password" class="toc-link">mysql_set_root_password</a></li>
+        <li class="toc-item"><a href="#mysql_execute_script" class="toc-link">mysql_execute_script</a></li>
+        <li class="toc-item"><a href="#mysql_dump" class="toc-link">mysql_dump</a></li>
+        <li class="toc-item"><a href="#psql_db_exists" class="toc-link">psql_db_exists</a></li>
+        <li class="toc-item"><a href="#psql_user_exists" class="toc-link">psql_user_exists</a></li>
+        <li class="toc-item"><a href="#psql_create_db" class="toc-link">psql_create_db</a></li>
+        </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="DatabaseCommands"><code>DatabaseCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour les interactions de base avec MySQL/MariaDB et PostgreSQL via les outils en ligne de commande.
+        Hérite de PluginUtilsBase pour l'exécution de commandes.
+      </p>
+    </section>
+
+    <h2 class="section-title">Méthodes Générales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="detect_db_type"><code>detect_db_type(log_levels: Optional[Dict[str, str]] = None) -> str</code></h4>
+      <p class="description">Tente de détecter le type de SGBD principal installé (MySQL/MariaDB ou PostgreSQL) en vérifiant la présence des commandes client et l'état des services.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">str</span> - Une des constantes : <code>DatabaseCommands.DB_TYPE_MYSQL</code>, <code>DatabaseCommands.DB_TYPE_POSTGRES</code>, <code>DatabaseCommands.DB_TYPE_UNKNOWN</code>.
+      </div>
+    </section>
+
+    <h2 class="section-title">Opérations MySQL / MariaDB</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="mysql_db_exists"><code>mysql_db_exists(db_name: str, **kwargs) -> bool</code></h4>
+      <p class="description">Vérifie si une base de données MySQL/MariaDB existe via une requête sur <code>INFORMATION_SCHEMA.SCHEMATA</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo si l'authentification socket est utilisée pour l'utilisateur spécifié (souvent root@localhost).</p>
+      <dl class="param-list">
+        <dt>db_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la base de données à vérifier.</dd>
+        <dt>**kwargs</dt>
+        <dd>Arguments optionnels passés à <code>_run_mysql_query</code> (user, password, host, port, needs_sudo).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la base de données existe.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="mysql_user_exists"><code>mysql_user_exists(username: str, host: str = 'localhost', **kwargs) -> bool</code></h4>
+      <p class="description">Vérifie si un utilisateur MySQL/MariaDB existe via une requête sur <code>mysql.user</code>.</p>
+       <p class="sudo-warning">Peut nécessiter sudo si l'authentification socket est utilisée.</p>
+      <dl class="param-list">
+        <dt>username</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'utilisateur.</dd>
+        <dt>host</dt>
+        <dd><span class="param-type">(str)</span>: Hôte de l'utilisateur. Défaut: 'localhost'.</dd>
+        <dt>**kwargs</dt>
+        <dd>Arguments optionnels passés à <code>_run_mysql_query</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'utilisateur existe.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="mysql_create_db"><code>mysql_create_db(db_name: str, charset: str = 'utf8mb4', collate: str = 'utf8mb4_unicode_ci', **kwargs) -> bool</code></h4>
+      <p class="description">Crée une base de données MySQL/MariaDB avec <code>CREATE DATABASE</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges suffisants (souvent root ou utilisateur avec droits CREATE).</p>
+      <dl class="param-list">
+        <dt>db_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la base de données à créer.</dd>
+        <dt>charset</dt>
+        <dd><span class="param-type">(str)</span>: Jeu de caractères. Défaut: 'utf8mb4'.</dd>
+        <dt>collate</dt>
+        <dd><span class="param-type">(str)</span>: Collation. Défaut: 'utf8mb4_unicode_ci'.</dd>
+        <dt>**kwargs</dt>
+        <dd>Arguments optionnels passés à <code>_run_mysql_query</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la création réussit ou si la DB existait déjà.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="mysql_drop_db"><code>mysql_drop_db(db_name: str, **kwargs) -> bool</code></h4>
+      <p class="description">Supprime une base de données MySQL/MariaDB avec <code>DROP DATABASE</code>. Opération destructive.</p>
+      <p class="sudo-warning">Nécessite des privilèges suffisants.</p>
+      <dl class="param-list">
+        <dt>db_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la base de données à supprimer.</dd>
+        <dt>**kwargs</dt>
+        <dd>Arguments optionnels passés à <code>_run_mysql_query</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la suppression réussit ou si la DB n'existait pas.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="mysql_create_user"><code>mysql_create_user(username: str, password: str, host: str = 'localhost', **kwargs) -> bool</code></h4>
+      <p class="description">Crée un utilisateur MySQL/MariaDB avec <code>CREATE USER</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges suffisants.</p>
+      <dl class="param-list">
+        <dt>username</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'utilisateur.</dd>
+        <dt>password</dt>
+        <dd><span class="param-type">(str)</span>: Mot de passe de l'utilisateur.</dd>
+        <dt>host</dt>
+        <dd><span class="param-type">(str)</span>: Hôte de l'utilisateur. Défaut: 'localhost'.</dd>
+        <dt>**kwargs</dt>
+        <dd>Arguments optionnels passés à <code>_run_mysql_query</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la création réussit ou si l'utilisateur existait déjà.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="mysql_drop_user"><code>mysql_drop_user(username: str, host: str = 'localhost', **kwargs) -> bool</code></h4>
+      <p class="description">Supprime un utilisateur MySQL/MariaDB avec <code>DROP USER</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges suffisants.</p>
+      <dl class="param-list">
+        <dt>username</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'utilisateur.</dd>
+        <dt>host</dt>
+        <dd><span class="param-type">(str)</span>: Hôte de l'utilisateur. Défaut: 'localhost'.</dd>
+        <dt>**kwargs</dt>
+        <dd>Arguments optionnels passés à <code>_run_mysql_query</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la suppression réussit ou si l'utilisateur n'existait pas.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="mysql_grant_privileges"><code>mysql_grant_privileges(db_name: str, username: str, host: str = 'localhost', privileges: str = 'ALL', table: str = '*', **kwargs) -> bool</code></h4>
+      <p class="description">Accorde des privilèges à un utilisateur sur une base de données/table avec <code>GRANT</code> et <code>FLUSH PRIVILEGES</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges suffisants.</p>
+      <dl class="param-list">
+        <dt>db_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la base de données (ou '*' pour global).</dd>
+        <dt>username</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'utilisateur.</dd>
+        <dt>host</dt>
+        <dd><span class="param-type">(str)</span>: Hôte de l'utilisateur. Défaut: 'localhost'.</dd>
+        <dt>privileges</dt>
+        <dd><span class="param-type">(str)</span>: Privilèges à accorder (ex: 'ALL', 'SELECT, INSERT'). Défaut: 'ALL'.</dd>
+        <dt>table</dt>
+        <dd><span class="param-type">(str)</span>: Table spécifique (ou '*' pour toutes). Défaut: '*'.</dd>
+        <dt>**kwargs</dt>
+        <dd>Arguments optionnels passés à <code>_run_mysql_query</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'octroi des privilèges réussit.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="mysql_set_root_password"><code>mysql_set_root_password(new_password: str, host: str = 'localhost', current_password: Optional[str] = None, **kwargs) -> bool</code></h4>
+      <p class="description">Tente de définir le mot de passe root MySQL/MariaDB via <code>ALTER USER</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root (ou le mot de passe root actuel).</p>
+      <dl class="param-list">
+        <dt>new_password</dt>
+        <dd><span class="param-type">(str)</span>: Nouveau mot de passe.</dd>
+        <dt>host</dt>
+        <dd><span class="param-type">(str)</span>: Hôte pour l'utilisateur root. Défaut: 'localhost'.</dd>
+        <dt>current_password</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Mot de passe root actuel (si nécessaire pour l'authentification). Défaut: None.</dd>
+        <dt>**kwargs</dt>
+        <dd>Arguments optionnels passés à <code>_run_mysql_query</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la modification réussit.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="mysql_execute_script"><code>mysql_execute_script(script_path: Union[str, Path], db_name: Optional[str] = None, **kwargs) -> bool</code></h4>
+      <p class="description">Exécute un script SQL depuis un fichier via la commande <code>mysql</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo selon l'utilisateur et la méthode d'authentification.</p>
+      <dl class="param-list">
+        <dt>script_path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier script SQL.</dd>
+        <dt>db_name</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Base de données cible (optionnel).</dd>
+        <dt>**kwargs</dt>
+        <dd>Arguments optionnels passés à <code>_build_mysql_args</code> (user, password, host, port, needs_sudo).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'exécution réussit.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="mysql_dump"><code>mysql_dump(db_name: str, output_file: Union[str, Path], **kwargs) -> bool</code></h4>
+      <p class="description">Effectue une sauvegarde d'une base de données MySQL/MariaDB via <code>mysqldump</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo selon l'utilisateur et la méthode d'authentification.</p>
+      <dl class="param-list">
+        <dt>db_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la base de données à sauvegarder.</dd>
+        <dt>output_file</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier de sortie pour la sauvegarde.</dd>
+        <dt>**kwargs</dt>
+        <dd>Arguments optionnels passés à <code>_build_mysql_args</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la sauvegarde réussit.
+      </div>
+    </section>
+
+    <h2 class="section-title">Opérations PostgreSQL</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="psql_db_exists"><code>psql_db_exists(db_name: str, **kwargs) -> bool</code></h4>
+      <p class="description">Vérifie si une base de données PostgreSQL existe via <code>psql -l | grep</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo si exécuté en tant qu'utilisateur postgres.</p>
+      <dl class="param-list">
+        <dt>db_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la base de données.</dd>
+        <dt>**kwargs</dt>
+        <dd>Arguments optionnels passés à <code>_build_psql_args</code> et <code>run</code> (user, password, host, port, needs_sudo, run_as_postgres).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la base de données existe.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="psql_user_exists"><code>psql_user_exists(username: str, **kwargs) -> bool</code></h4>
+      <p class="description">Vérifie si un rôle (utilisateur) PostgreSQL existe via une requête sur <code>pg_roles</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo si exécuté en tant qu'utilisateur postgres.</p>
+      <dl class="param-list">
+        <dt>username</dt>
+        <dd><span class="param-type">(str)</span>: Nom du rôle/utilisateur.</dd>
+        <dt>**kwargs</dt>
+        <dd>Arguments optionnels passés à <code>_run_psql_command</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'utilisateur existe.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="psql_create_db"><code>psql_create_db(db_name: str, owner: Optional[str] = None, **kwargs) -> bool</code></h4>
+      <p class="description">Crée une base de données PostgreSQL via <code>createdb</code> ou <code>psql -c "CREATE DATABASE..."</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges suffisants (souvent utilisateur postgres ou rôle avec droits CREATE DATABASE).</p>
+      <dl class="param-list">
+        <dt>db_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la base de données.</dd>
+        <dt>owner</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Propriétaire de la nouvelle base de données. Défaut: None.</dd>
+        <dt>**kwargs</dt>
+        <dd>Arguments optionnels passés aux commandes sous-jacentes.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la création réussit ou si la DB existait déjà.
+      </div>
+    </section>
+
+     <p><i>Note: Les méthodes <code>psql_drop_db</code>, <code>psql_create_user</code>, <code>psql_drop_user</code>, <code>psql_grant_privileges</code>, <code>psql_set_user_password</code>, <code>psql_execute_script</code>, <code>psql_dump</code> sont mentionnées comme non implémentées dans le code source fourni.</i></p>
+
+  </div>
+</body>
+</html>

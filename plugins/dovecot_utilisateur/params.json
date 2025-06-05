@@ -1,0 +1,13 @@
+{
+    "plugin_name": "text_plugin",
+    "instance_id": 2,
+    "name": "Dovecot - Installation et configuration",
+    "show_name": "text_plugin",
+    "icon": "\ud83d\udee0\ufe0f",
+    "config": {
+        "sms": "ggd027srfic002",
+        "remote_execution": false
+    },
+    "remote_execution": false,
+    "text_mode": "True"
+}

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/grub.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/grub.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour interagir avec le chargeur d'amorçage GRUB (GRand Unified Bootloader).
+      Permet de mettre à jour la configuration, d'installer GRUB et de modifier les options de démarrage via <code>/etc/default/grub</code>.
+    </p>
+    <p class="dependency-warning">
+      Nécessite que les commandes <code>grub-install</code>, <code>update-grub</code> (ou <code>grub-mkconfig</code>), et <code>blkid</code> soient installées.
+      Dépendance sur <code>plugins_utils.config_files</code> pour la modification de <code>/etc/default/grub</code>.
+    </p>
+    <p class="critical-warning">
+      <strong>ATTENTION :</strong> Les opérations sur GRUB (particulièrement <code>grub-install</code>) sont critiques pour le démarrage du système. Des erreurs peuvent rendre le système non démarrable. Procédez avec une extrême prudence et comprenez les implications avant d'utiliser les fonctions de modification ou d'installation. Des sauvegardes sont fortement recommandées.
+    </p>
+     <p class="encryption-note">
+      <strong>Note sur les disques cryptés :</strong> Ce module peut aider à configurer GRUB pour démarrer depuis un système de fichiers racine crypté (LUKS) en modifiant <code>/etc/default/grub</code> (paramètres `GRUB_ENABLE_CRYPTODISK` et `cryptdevice`). Cependant, il ne configure pas l'initramfs, qui doit contenir les outils nécessaires (`cryptsetup`) pour le déverrouillage effectif. La partition `/boot` où GRUB est installé doit généralement rester non cryptée.
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#GrubCommands" class="toc-link">GrubCommands</a></li>
+        <li class="toc-item">Configuration Principale
+            <ul class="toc-sublist">
+                <li><a href="#update_grub_config" class="toc-link">update_grub_config</a></li>
+                <li><a href="#install_grub" class="toc-link">install_grub</a></li>
+            </ul>
+        </li>
+        <li class="toc-item">Modification de /etc/default/grub
+            <ul class="toc-sublist">
+                 <li><a href="#set_grub_default_entry" class="toc-link">set_grub_default_entry</a></li>
+                 <li><a href="#set_grub_timeout" class="toc-link">set_grub_timeout</a></li>
+                 <li><a href="#add_grub_cmdline_linux_param" class="toc-link">add_grub_cmdline_linux_param</a></li>
+                 <li><a href="#remove_grub_cmdline_linux_param" class="toc-link">remove_grub_cmdline_linux_param</a></li>
+                 <li><a href="#enable_grub_cryptodisk" class="toc-link">enable_grub_cryptodisk</a></li>
+            </ul>
+        </li>
+        <li class="toc-item">Configuration LUKS (Disques Cryptés)
+            <ul class="toc-sublist">
+                 <li><a href="#configure_grub_for_luks" class="toc-link">configure_grub_for_luks</a></li>
+            </ul>
+        </li>
+         <li class="toc-item">Information
+            <ul class="toc-sublist">
+                 <li><a href="#get_grub_entries" class="toc-link">get_grub_entries</a></li>
+            </ul>
+        </li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="GrubCommands"><code>GrubCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour gérer la configuration et l'installation de GRUB.
+        Hérite de PluginUtilsBase pour l'exécution de commandes et dépend de ConfigFileCommands pour éditer <code>/etc/default/grub</code>.
+      </p>
+    </section>
+
+    <h2 class="section-title">Configuration Principale</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="update_grub_config"><code>update_grub_config(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Met à jour le fichier de configuration principal de GRUB (<code>/boot/grub/grub.cfg</code> ou similaire) en exécutant <code>update-grub</code> ou <code>grub-mkconfig -o ...</code>. À lancer après chaque modification de <code>/etc/default/grub</code> ou des scripts dans <code>/etc/grub.d/</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la mise à jour a réussi, False sinon.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="install_grub"><code>install_grub(device: str, boot_directory: Optional[str] = None, efi_directory: Optional[str] = None, target_arch: Optional[str] = None, recheck: bool = False, force: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Installe le chargeur d'amorçage GRUB sur le secteur de démarrage d'un disque (pour BIOS/MBR) ou dans la partition ESP (pour UEFI).</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <p class="critical-warning"><strong>ATTENTION :</strong> Opération très critique qui modifie le secteur d'amorçage. Une erreur peut rendre le système complètement indémarrable. Ciblez le disque entier (ex: <code>/dev/sda</code>) et non une partition.</p>
+      <dl class="param-list">
+        <dt>device</dt>
+        <dd><span class="param-type">(str)</span>: Périphérique disque cible (ex: <code>/dev/sda</code>, <code>/dev/nvme0n1</code>).</dd>
+        <dt>boot_directory</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Spécifie le répertoire racine de GRUB (où se trouve <code>/grub</code>). Défaut: GRUB tente de deviner (généralement <code>/boot</code>).</dd>
+        <dt>efi_directory</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Point de montage de la partition ESP (requis si installation UEFI explicite ou si GRUB ne la trouve pas). Ex: <code>/boot/efi</code>.</dd>
+        <dt>target_arch</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Architecture cible (ex: <code>i386-pc</code> pour BIOS, <code>x86_64-efi</code> pour UEFI 64 bits). Si None, <code>grub-install</code> essaie de deviner. Défaut: None.</dd>
+        <dt>recheck</dt>
+        <dd><span class="param-type">(bool)</span>: Force la ré-vérification des périphériques (option <code>--recheck</code>). Défaut: False.</dd>
+        <dt>force</dt>
+        <dd><span class="param-type">(bool)</span>: Force l'installation même si des problèmes sont détectés (option <code>--force</code>, DANGEREUX). Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'installation signale un succès sans erreur. False sinon.
+      </div>
+    </section>
+
+    <h2 class="section-title">Modification de /etc/default/grub</h2>
+    <p>Les méthodes suivantes modifient le fichier <code>/etc/default/grub</code> et appellent automatiquement <code>update_grub_config()</code> en cas de succès pour appliquer les changements.</p>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_grub_default_entry"><code>set_grub_default_entry(entry_spec: Union[int, str], log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit l'entrée de démarrage par défaut (paramètre <code>GRUB_DEFAULT</code>).</p>
+      <p class="sudo-warning">Nécessite des privilèges root (pour écrire le fichier et lancer update-grub).</p>
+      <dl class="param-list">
+        <dt>entry_spec</dt>
+        <dd><span class="param-type">(Union[int, str])</span>: Index numérique (0-based) ou titre exact de l'entrée de menu souhaitée (tel qu'il apparaîtrait dans <code>grub.cfg</code>).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la modification et la mise à jour de GRUB ont réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_grub_timeout"><code>set_grub_timeout(seconds: int, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit le délai d'attente (en secondes) avant le démarrage automatique de l'entrée par défaut (paramètre <code>GRUB_TIMEOUT</code>).</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>seconds</dt>
+        <dd><span class="param-type">(int)</span>: Délai en secondes (ex: <code>5</code>, <code>0</code> pour démarrer immédiatement, <code>-1</code> pour attendre indéfiniment).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la modification et la mise à jour de GRUB ont réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_grub_cmdline_linux_param"><code>add_grub_cmdline_linux_param(param: str, value: Optional[str] = None, default_only: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute un paramètre à la ligne de commande du noyau Linux (paramètres <code>GRUB_CMDLINE_LINUX</code> ou <code>GRUB_CMDLINE_LINUX_DEFAULT</code>).</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>param</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paramètre (ex: <code>'quiet'</code>, <code>'splash'</code>, <code>'cryptdevice'</code>). Ne pas inclure le '=' ici.</dd>
+        <dt>value</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Valeur du paramètre. Si None, ajoute le paramètre comme un drapeau (ex: <code>quiet</code>). Si une valeur est fournie, ajoute <code>param=valeur</code>.</dd>
+        <dt>default_only</dt>
+        <dd><span class="param-type">(bool)</span>: Si True (défaut), modifie <code>GRUB_CMDLINE_LINUX_DEFAULT</code> (appliqué aux entrées normales). Si False, modifie <code>GRUB_CMDLINE_LINUX</code> (appliqué à toutes les entrées, y compris recovery).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'ajout et la mise à jour de GRUB ont réussi. False si le paramètre (ou sa clé) existait déjà ou en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="remove_grub_cmdline_linux_param"><code>remove_grub_cmdline_linux_param(param_key: str, default_only: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime un paramètre (et sa valeur éventuelle) de la ligne de commande du noyau Linux en se basant sur sa clé.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>param_key</dt>
+        <dd><span class="param-type">(str)</span>: Clé du paramètre à supprimer (ex: <code>'quiet'</code>, <code>'cryptdevice'</code>).</dd>
+        <dt>default_only</dt>
+        <dd><span class="param-type">(bool)</span>: Si True (défaut), modifie <code>GRUB_CMDLINE_LINUX_DEFAULT</code>. Si False, modifie <code>GRUB_CMDLINE_LINUX</code>.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la suppression et la mise à jour de GRUB ont réussi, ou si le paramètre n'existait pas.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="enable_grub_cryptodisk"><code>enable_grub_cryptodisk(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Active l'option <code>GRUB_ENABLE_CRYPTODISK=y</code> dans <code>/etc/default/grub</code>, nécessaire pour que GRUB puisse déverrouiller les volumes LUKS.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'activation et la mise à jour de GRUB ont réussi.
+      </div>
+    </section>
+
+    <h2 class="section-title">Configuration LUKS (Disques Cryptés)</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="configure_grub_for_luks"><code>configure_grub_for_luks(luks_uuid: str, luks_name: str = 'luks-root', default_only: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Configure les paramètres nécessaires dans <code>/etc/default/grub</code> pour permettre à GRUB de tenter de déverrouiller un volume racine LUKS au démarrage. Active <code>GRUB_ENABLE_CRYPTODISK=y</code> et ajoute le paramètre <code>cryptdevice=UUID=...</code> à la ligne de commande du noyau.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <p class="critical-warning"><strong>ATTENTION :</strong> Cette fonction configure GRUB, mais ne configure pas l'initramfs qui doit contenir les outils (<code>cryptsetup</code>) pour le déverrouillage effectif. Assurez-vous que l'initramfs est correctement généré après cette configuration (ex: <code>update-initramfs -u -k all</code>).</p>
+      <dl class="param-list">
+        <dt>luks_uuid</dt>
+        <dd><span class="param-type">(str)</span>: UUID du volume LUKS (obtenu via <code>blkid</code>).</dd>
+        <dt>luks_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom à utiliser pour le périphérique mappé après déverrouillage (ex: <code>'luks-root'</code>, <code>'cryptroot'</code>). Ce nom doit correspondre à celui utilisé dans <code>/etc/crypttab</code> (s'il existe) et/ou attendu par l'initramfs pour trouver la racine. Défaut: 'luks-root'.</dd>
+        <dt>default_only</dt>
+        <dd><span class="param-type">(bool)</span>: Ajouter le paramètre <code>cryptdevice</code> à <code>GRUB_CMDLINE_LINUX_DEFAULT</code> (True) ou <code>GRUB_CMDLINE_LINUX</code> (False). Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la configuration de <code>/etc/default/grub</code> et l'exécution de <code>update-grub</code> ont réussi.
+      </div>
+    </section>
+
+    <h2 class="section-title">Information</h2>
+
+     <section class="method-section">
+      <h4 class="method-title" id="get_grub_entries"><code>get_grub_entries(log_levels: Optional[Dict[str, str]] = None) -> Optional[List[Dict[str, Any]]]</code></h4>
+      <p class="description">Tente de parser le fichier <code>grub.cfg</code> pour extraire les entrées de menu (<code>menuentry</code>). Utile pour l'affichage mais le parsing peut être fragile.</p>
+      <p class="sudo-warning">Peut nécessiter des privilèges root pour lire <code>/boot/grub/grub.cfg</code>.</p>
+      <p class="dependency-warning">Ne modifiez jamais <code>grub.cfg</code> directement ; utilisez les configurations dans <code>/etc/default/grub</code> et <code>/etc/grub.d/</code> puis lancez <code>update_grub_config()</code>.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[List[Dict[str, Any]]]</span> - Une liste de dictionnaires représentant les entrées trouvées (avec 'title', 'options', 'content'), ou None si erreur de lecture/parsing ou fichier non trouvé.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

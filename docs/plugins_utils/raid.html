@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/raid.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/raid.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour la gestion avancée des tableaux RAID logiciels Linux (mdadm).
+      Permet de créer, gérer, surveiller et réparer les dispositifs RAID.
+    </p>
+    <p class="dependency-warning">
+      Nécessite la commande <strong><code>mdadm</code></strong> (paquet 'mdadm').
+      Utilise également les commandes <code>test</code>, <code>which</code>, <code>cat</code> (pour /proc/mdstat), <code>cp</code>, <code>mkdir</code>.
+      Dépendance optionnelle sur <code>plugins_utils.config_files</code> pour <code>_update_mdadm_conf</code> et <code>plugins_utils.storage</code> pour <code>resize_filesystem</code>.
+    </p>
+     <p class="sudo-warning">La plupart des opérations (création, arrêt, modification, suppression, mise à jour de conf) nécessitent des privilèges root.</p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#RaidCommands" class="toc-link">RaidCommands</a></li>
+        <li class="toc-item"><a href="#create_raid_array" class="toc-link">create_raid_array</a></li>
+        <li class="toc-item"><a href="#stop_raid_array" class="toc-link">stop_raid_array</a></li>
+        <li class="toc-item"><a href="#check_raid_status" class="toc-link">check_raid_status</a></li>
+        <li class="toc-item"><a href="#wait_for_raid_sync" class="toc-link">wait_for_raid_sync</a></li>
+        </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="RaidCommands"><code>RaidCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour gérer les tableaux RAID Linux (mdadm).
+        Hérite de PluginUtilsBase pour l'exécution de commandes et la progression.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Méthodes Principales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="create_raid_array"><code>create_raid_array(raid_level: Union[int, str], devices: List[str], array_path: Optional[str] = None, spare_devices: Optional[List[str]] = None, chunk_size: Optional[int] = None, metadata: str = "1.2", force: bool = False, assume_clean: bool = False, task_id: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> Optional[str]</code></h4>
+      <p class="description">Crée un nouveau tableau RAID via <code>mdadm --create</code>. Attend la fin de la synchronisation initiale et met à jour <code>mdadm.conf</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>raid_level</dt>
+        <dd><span class="param-type">(Union[int, str])</span>: Niveau RAID (0, 1, 4, 5, 6, 10).</dd>
+        <dt>devices</dt>
+        <dd><span class="param-type">(List[str])</span>: Liste des chemins des périphériques à inclure (ex: /dev/sda1).</dd>
+        <dt>array_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin du périphérique RAID à créer (ex: /dev/md0). Auto-détecté si None.</dd>
+        <dt>spare_devices</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste des périphériques de secours. Défaut: None.</dd>
+        <dt>chunk_size</dt>
+        <dd><span class="param-type">(Optional[int])</span>: Taille de chunk en KiloOctets (pour RAID 0, 4, 5, 6, 10). Défaut: None (utilise défaut mdadm).</dd>
+        <dt>metadata</dt>
+        <dd><span class="param-type">(str)</span>: Version des métadonnées (ex: "1.2", "0.90"). Défaut: "1.2".</dd>
+        <dt>force</dt>
+        <dd><span class="param-type">(bool)</span>: Forcer la création même si des superblocks existent (<code>--force</code>). Défaut: False.</dd>
+        <dt>assume_clean</dt>
+        <dd><span class="param-type">(bool)</span>: Supposer que les disques sont synchronisés (<code>--assume-clean</code>). Accélère RAID1/10 mais potentiellement dangereux si les disques ne sont pas vides/identiques. Défaut: False.</dd>
+        <dt>task_id</dt>
+        <dd><span class="param-type">(Optional[str])</span>: ID de tâche pour la progression (couvre la création et la synchro). Auto-généré si None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[str]</span> - Chemin du périphérique RAID créé (ex: /dev/md0) ou None si échec.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="stop_raid_array"><code>stop_raid_array(array_path: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Arrête (désactive) un tableau RAID via <code>mdadm --stop</code>. Le tableau ne doit pas être monté ou utilisé.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>array_path</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du périphérique RAID à arrêter (ex: /dev/md0).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès (ou si déjà arrêté). False si le périphérique est occupé ou en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="check_raid_status"><code>check_raid_status(array_path: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> Union[Dict[str, Any], List[Dict[str, Any]], None]</code></h4>
+      <p class="description">Vérifie l'état d'un ou tous les tableaux RAID. Utilise <code>mdadm --detail</code> pour un array spécifique, ou parse <code>/proc/mdstat</code> pour tous les arrays actifs.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour <code>mdadm --detail</code>.</p>
+      <dl class="param-list">
+        <dt>array_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin du périphérique RAID spécifique (ex: /dev/md0). Si None, vérifie tous les arrays via /proc/mdstat. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Union[Dict, List[Dict], None]</span> - Si <code>array_path</code> fourni: Dictionnaire détaillé parsé depuis <code>mdadm --detail</code> ou None si erreur. Si <code>array_path</code> est None: Liste de dictionnaires parsés depuis <code>/proc/mdstat</code> ou None si erreur de lecture.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="wait_for_raid_sync"><code>wait_for_raid_sync(array_path: str, timeout: int = 3600, task_id: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Attend la fin de la synchronisation/reconstruction/reshape/check d'un array en surveillant <code>/proc/mdstat</code>. Met à jour une tâche de progression si <code>task_id</code> est fourni.</p>
+      <dl class="param-list">
+        <dt>array_path</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du périphérique RAID (ex: /dev/md0).</dd>
+        <dt>timeout</dt>
+        <dd><span class="param-type">(int)</span>: Temps maximum d'attente en secondes. Défaut: 3600 (1 heure).</dd>
+        <dt>task_id</dt>
+        <dd><span class="param-type">(Optional[str])</span>: ID de tâche existant à mettre à jour avec la progression (0-100). Si None, aucune progression n'est rapportée. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la synchronisation est terminée (ou n'était pas nécessaire) dans le délai imparti, False si timeout ou erreur.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

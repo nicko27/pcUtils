@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/files.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/files.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour la gestion des fichiers et répertoires.
+      Fournit des opérations de copie, déplacement, remplacement de texte, et récupération de taille,
+      avec gestion de la progression pour les opérations longues.
+    </p>
+    <p class="dependency-warning">
+      Utilise les modules Python standard : <code>os</code>, <code>shutil</code>, <code>time</code>, <code>fnmatch</code>, <code>pathlib</code>, <code>traceback</code>.
+      L'exécution de commandes système (via <code>self.run</code>) peut être utilisée pour des opérations nécessitant <code>sudo</code> (ex: création de dossiers système, copie/déplacement avec préservation des permissions root).
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#FilesCommands" class="toc-link">FilesCommands</a></li>
+        <li class="toc-item"><a href="#replace_in_file" class="toc-link">replace_in_file</a></li>
+        <li class="toc-item"><a href="#get_file_size" class="toc-link">get_file_size</a></li>
+        <li class="toc-item"><a href="#get_dir_size" class="toc-link">get_dir_size</a></li>
+        <li class="toc-item"><a href="#copy_file" class="toc-link">copy_file</a></li>
+        <li class="toc-item"><a href="#copy_dir" class="toc-link">copy_dir</a></li>
+        <li class="toc-item"><a href="#move_file" class="toc-link">move_file</a></li>
+        <li class="toc-item"><a href="#move_dir" class="toc-link">move_dir</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="FilesCommands"><code>FilesCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe utilitaire pour la gestion des fichiers et répertoires.
+        Hérite de PluginUtilsBase pour l'exécution de commandes (si nécessaire pour sudo) et la progression.
+        Utilise principalement les modules standard Python.
+      </p>
+    </section>
+
+    <h2 class="section-title">Méthodes Principales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="replace_in_file"><code>replace_in_file(chemin_fichier: Union[str, Path], ancienne_chaine: str, nouvelle_chaine: str, encodage: str = "utf-8", log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Remplace toutes les occurrences d'une chaîne de caractères dans un fichier texte. Crée une sauvegarde <code>.bak</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo si le fichier n'est pas accessible en lecture/écriture par l'utilisateur courant.</p>
+      <dl class="param-list">
+        <dt>chemin_fichier</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier à traiter.</dd>
+        <dt>ancienne_chaine</dt>
+        <dd><span class="param-type">(str)</span>: Chaîne à rechercher/remplacer.</dd>
+        <dt>nouvelle_chaine</dt>
+        <dd><span class="param-type">(str)</span>: Chaîne de remplacement.</dd>
+        <dt>encodage</dt>
+        <dd><span class="param-type">(str)</span>: Encodage du fichier. Défaut: 'utf-8'.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'opération a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_file_size"><code>get_file_size(path: Union[str, Path], log_levels: Optional[Dict[str, str]] = None) -> int</code></h4>
+      <p class="description">Retourne la taille d'un fichier en octets via <code>os.path.getsize</code>.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">int</span> - Taille en octets, ou -1 en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_dir_size"><code>get_dir_size(path: Union[str, Path], follow_symlinks: bool = False, log_levels: Optional[Dict[str, str]] = None) -> int</code></h4>
+      <p class="description">Calcule la taille totale d'un dossier en octets (récursivement) via <code>os.walk</code> et <code>os.path.getsize</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo si le dossier ou certains de ses contenus ne sont pas accessibles par l'utilisateur courant.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du dossier.</dd>
+        <dt>follow_symlinks</dt>
+        <dd><span class="param-type">(bool)</span>: Suivre les liens symboliques lors du parcours. Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">int</span> - Taille totale en octets, ou -1 en cas d'erreur majeure.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="copy_file"><code>copy_file(src: Union[str, Path], dst: Union[str, Path], chunk_size: int = DEFAULT_CHUNK_SIZE, task_id: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Copie un fichier avec une barre de progression basée sur la taille. Préserve les métadonnées (via <code>shutil.copystat</code>). Gère la création des dossiers parents.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire la source, créer le dossier destination ou écrire le fichier destination.</p>
+      <dl class="param-list">
+        <dt>src</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier source.</dd>
+        <dt>dst</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier destination (ou dossier destination).</dd>
+        <dt>chunk_size</dt>
+        <dd><span class="param-type">(int)</span>: Taille des blocs pour la copie. Défaut: 1 Mo.</dd>
+        <dt>task_id</dt>
+        <dd><span class="param-type">(Optional[str])</span>: ID de tâche pour la progression visuelle. Auto-généré si None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la copie réussit.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="copy_dir"><code>copy_dir(src: Union[str, Path], dst: Union[str, Path], exclude_patterns: Optional[List[str]] = None, task_id: Optional[str] = None, copy_symlinks: bool = True, ignore_dangling_symlinks: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Copie un répertoire récursivement avec progression basée sur le nombre d'éléments. Gère les exclusions et les liens symboliques.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire la source, créer le dossier destination ou écrire les fichiers/dossiers destination.</p>
+      <dl class="param-list">
+        <dt>src</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du dossier source.</dd>
+        <dt>dst</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du dossier destination.</dd>
+        <dt>exclude_patterns</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste de motifs (style glob, ex: "*.tmp", "cache/*") à exclure de la copie.</dd>
+        <dt>task_id</dt>
+        <dd><span class="param-type">(Optional[str])</span>: ID de tâche pour la progression visuelle. Auto-généré si None.</dd>
+        <dt>copy_symlinks</dt>
+        <dd><span class="param-type">(bool)</span>: Si True, copie les liens symboliques tels quels. Si False, copie le contenu pointé par les liens. Défaut: True.</dd>
+        <dt>ignore_dangling_symlinks</dt>
+        <dd><span class="param-type">(bool)</span>: Si True, ignore les liens symboliques cassés sans erreur. Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la copie s'est terminée sans erreur majeure.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="move_file"><code>move_file(src: Union[str, Path], dst: Union[str, Path], task_id: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Déplace un fichier. Tente d'abord un renommage atomique (via <code>mv</code>). Si cela échoue (ex: cross-device), effectue une copie suivie d'une suppression de la source.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire/supprimer les fichiers/dossiers.</p>
+      <dl class="param-list">
+        <dt>src</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier source.</dd>
+        <dt>dst</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier destination (ou dossier destination).</dd>
+        <dt>task_id</dt>
+        <dd><span class="param-type">(Optional[str])</span>: ID de tâche utilisé si une copie est nécessaire. Auto-généré si None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le déplacement réussit.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="move_dir"><code>move_dir(src: Union[str, Path], dst: Union[str, Path], exclude_patterns: Optional[List[str]] = None, task_id: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Déplace un dossier. Tente d'abord un renommage atomique (via <code>mv</code>). Si cela échoue (ex: cross-device), effectue une copie récursive suivie d'une suppression de la source.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire/supprimer les fichiers/dossiers.</p>
+      <dl class="param-list">
+        <dt>src</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du dossier source.</dd>
+        <dt>dst</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du dossier destination.</dd>
+        <dt>exclude_patterns</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste de motifs à exclure si une copie est effectuée.</dd>
+        <dt>task_id</dt>
+        <dd><span class="param-type">(Optional[str])</span>: ID de tâche utilisé si une copie est nécessaire. Auto-généré si None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le déplacement réussit.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

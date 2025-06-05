@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/apt.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/apt.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour la gestion complète des paquets Debian/Ubuntu avec apt.
+      Offre des fonctionnalités avancées pour installer, désinstaller, rechercher et gérer
+      les paquets et dépôts du système.
+    </p>
+    <p class="dependency-warning">
+      Nécessite que les commandes <code>apt</code>, <code>apt-get</code>, <code>dpkg</code>, <code>gpg</code>, <code>curl</code> soient installées.
+      Dépendance optionnelle sur <code>plugins_utils.config_files</code> pour <code>add_repository</code>.
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#AptCommands" class="toc-link">AptCommands</a></li>
+        <li class="toc-item"><a href="#update" class="toc-link">update</a></li>
+        <li class="toc-item"><a href="#upgrade" class="toc-link">upgrade</a></li>
+        <li class="toc-item"><a href="#install" class="toc-link">install</a></li>
+        <li class="toc-item"><a href="#uninstall" class="toc-link">uninstall</a></li>
+        <li class="toc-item"><a href="#autoremove" class="toc-link">autoremove</a></li>
+        <li class="toc-item"><a href="#clean" class="toc-link">clean</a></li>
+        <li class="toc-item"><a href="#autoclean" class="toc-link">autoclean</a></li>
+        <li class="toc-item"><a href="#fix_broken" class="toc-link">fix_broken</a></li>
+        <li class="toc-item"><a href="#add_repository" class="toc-link">add_repository</a></li>
+        <li class="toc-item"><a href="#is_installed" class="toc-link">is_installed</a></li>
+        <li class="toc-item"><a href="#get_version" class="toc-link">get_version</a></li>
+        <li class="toc-item"><a href="#get_candidate_version" class="toc-link">get_candidate_version</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="AptCommands"><code>AptCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe avancée pour gérer les paquets via apt/apt-get.
+        Hérite de PluginUtilsBase pour l'exécution de commandes et la progression.
+      </p>
+    </section>
+
+    <h2 class="section-title">Méthodes Principales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="update"><code>update(allow_fail: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Met à jour la liste des paquets disponibles via <code>apt-get update</code>. Gère sa propre barre de progression interne.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>allow_fail</dt>
+        <dd><span class="param-type">(bool)</span>: Si True, renvoie True même si des erreurs non critiques surviennent. Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la mise à jour a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="upgrade"><code>upgrade(dist_upgrade: bool = False, full_upgrade: bool = False, simulate: bool = False, autoremove: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Met à jour les paquets installés via <code>apt-get upgrade</code>, <code>dist-upgrade</code> ou <code>apt full-upgrade</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>dist_upgrade</dt>
+        <dd><span class="param-type">(bool)</span>: Utiliser <code>dist-upgrade</code>. Défaut: False.</dd>
+        <dt>full_upgrade</dt>
+        <dd><span class="param-type">(bool)</span>: Utiliser <code>apt full-upgrade</code>. Défaut: False.</dd>
+        <dt>simulate</dt>
+        <dd><span class="param-type">(bool)</span>: Simuler l'opération. Défaut: False.</dd>
+        <dt>autoremove</dt>
+        <dd><span class="param-type">(bool)</span>: Exécuter <code>autoremove</code> après. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la mise à jour (et autoremove si activé) a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="install"><code>install(package_names: Union[str, List[str]], version: Optional[str] = None, reinstall: bool = False, auto_fix: bool = True, no_recommends: bool = False, simulate: bool = False, force_conf: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Installe un ou plusieurs paquets via <code>apt-get install</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>package_names</dt>
+        <dd><span class="param-type">(Union[str, List[str]])</span>: Nom(s) du/des paquet(s).</dd>
+        <dt>version</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Version spécifique (pour un seul paquet). Défaut: None.</dd>
+        <dt>reinstall</dt>
+        <dd><span class="param-type">(bool)</span>: Utiliser <code>--reinstall</code>. Défaut: False.</dd>
+        <dt>auto_fix</dt>
+        <dd><span class="param-type">(bool)</span>: Tenter <code>--fix-broken</code> si nécessaire. Défaut: True.</dd>
+        <dt>no_recommends</dt>
+        <dd><span class="param-type">(bool)</span>: Utiliser <code>--no-install-recommends</code>. Défaut: False.</dd>
+        <dt>simulate</dt>
+        <dd><span class="param-type">(bool)</span>: Simuler l'opération. Défaut: False.</dd>
+        <dt>force_conf</dt>
+        <dd><span class="param-type">(bool)</span>: Forcer la configuration Dpkg (<code>--force-confdef --force-confold</code>). Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'installation a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="uninstall"><code>uninstall(package_names: Union[str, List[str]], purge: bool = False, auto_remove: bool = True, simulate: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Désinstalle un ou plusieurs paquets via <code>apt-get remove</code> ou <code>purge</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>package_names</dt>
+        <dd><span class="param-type">(Union[str, List[str]])</span>: Nom(s) du/des paquet(s).</dd>
+        <dt>purge</dt>
+        <dd><span class="param-type">(bool)</span>: Utiliser <code>purge</code> au lieu de <code>remove</code>. Défaut: False.</dd>
+        <dt>auto_remove</dt>
+        <dd><span class="param-type">(bool)</span>: Exécuter <code>autoremove</code> après. Défaut: True.</dd>
+        <dt>simulate</dt>
+        <dd><span class="param-type">(bool)</span>: Simuler l'opération. Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la désinstallation (et autoremove si activé) a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="autoremove"><code>autoremove(purge: bool = False, simulate: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime les paquets inutilisés via <code>apt-get autoremove</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>purge</dt>
+        <dd><span class="param-type">(bool)</span>: Utiliser <code>--purge</code>. Défaut: False.</dd>
+        <dt>simulate</dt>
+        <dd><span class="param-type">(bool)</span>: Simuler l'opération. Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'opération a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="clean"><code>clean(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Nettoie le cache apt via <code>apt-get clean</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'opération a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="autoclean"><code>autoclean(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Nettoie le cache apt des paquets obsolètes via <code>apt-get autoclean</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'opération a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="fix_broken"><code>fix_broken(simulate: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Tente de réparer les dépendances cassées via <code>apt-get install --fix-broken</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>simulate</dt>
+        <dd><span class="param-type">(bool)</span>: Simuler l'opération. Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la réparation a réussi ou si rien n'était cassé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_repository"><code>add_repository(repo_line: str, key_url: Optional[str] = None, keyring_path: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute un dépôt APT et sa clé GPG. Utilise <code>curl</code> et <code>gpg</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>repo_line</dt>
+        <dd><span class="param-type">(str)</span>: Ligne du dépôt (ex: "deb [...] http://...").</dd>
+        <dt>key_url</dt>
+        <dd><span class="param-type">(Optional[str])</span>: URL de la clé GPG publique.</dd>
+        <dt>keyring_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin où enregistrer la clé (ex: /etc/apt/keyrings/...). Auto-généré si None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'ajout et la mise à jour des sources ont réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_installed"><code>is_installed(package_name: str, min_version: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie si un paquet est installé via <code>dpkg-query</code> et optionnellement sa version minimale.</p>
+      <dl class="param-list">
+        <dt>package_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paquet.</dd>
+        <dt>min_version</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Version minimale requise. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le paquet est installé et la version est suffisante.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_version"><code>get_version(package_name: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[str]</code></h4>
+      <p class="description">Obtient la version installée d'un paquet via <code>dpkg-query</code>.</p>
+      <dl class="param-list">
+        <dt>package_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paquet.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[str]</span> - La version installée ou None.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_candidate_version"><code>get_candidate_version(package_name: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[str]</code></h4>
+      <p class="description">Obtient la version candidate (disponible) via <code>apt-cache policy</code>.</p>
+      <dl class="param-list">
+        <dt>package_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paquet.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[str]</span> - La version candidate ou None.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

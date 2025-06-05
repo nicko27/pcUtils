@@ -1,0 +1,102 @@
+name: Copie Dossiers vers support externe (plugin non opérationnel)
+description: "Copie un dossier ou des utilisateurs vers un support externe"
+version: 1.0
+category: Système
+multiple: true
+remote_execution: false
+icon: 🏠
+sudo: true
+config_fields:
+  src_dir:
+    type: directory
+    label: Dossier source
+    default: /home
+    required: true
+    not_empty: true
+
+  user_home:
+    type: checkbox
+    label: Cocher cette case si le dossier est un dossier contenant des comptes utilisateurs
+    default: false
+
+  user_all:
+    type: checkbox
+    label: Copier tous le contenu du dossier et ses sous_dossiers
+    default: true
+
+  cu_sort:
+    type: checkbox
+    label: Tri par code unité
+    required: false
+    default: false
+    enabled_if:
+      conditions:
+        - field_id: "user_all"
+          required_value: false
+
+  cu_list:
+    type: text
+    label: Code unité séparées par des virgules, recharger le dossier pour prise en compte
+    placeholder: 12027,604,....
+    default: 12027
+    required: false
+    enabled_if:
+      conditions:
+        - field_id: "cu_sort"
+          required_value: true
+
+  user_select:
+    type: checkbox_group
+    label: Sélectionner les comptes utilisateurs à copier
+    depends_on: [src_dir, user_home]
+    dynamic_options:
+      script: get_users.py
+      global: true
+      function: get_users
+      args:
+        - param_name: cu_list
+          field: cu_list
+        - param_name: home_dir
+          field: src_dir
+        - param_name: cuSort
+          field: cu_sort
+        - param_name: execute
+          field: user_home
+      value: username
+      description: description
+      auto_select_key: enabled
+      auto_select_value: true
+    default_selected: ["nicolas.voirin"]
+    enabled_if:
+      conditions:
+        - field_id: "user_all"
+          required_value: false
+        - field_id: "user_home"
+          required_value: true
+      operator: AND
+
+
+
+  dst_dir:
+    type: select
+    label: Support de destination
+    required: true
+    dynamic_options:
+      global: true
+      script: get_usb.py
+      function: get_usb
+      args:
+        - value: false
+          param_name: include_system_disk
+        - value: true
+          param_name: only_external
+        - value: false
+          param_name: only_internal
+      dict: devices
+      value: path
+      description: description
+
+  machine_dir:
+    type: checkbox
+    label: Créer un dossier avec le nom de machine dans la destination
+    default: true

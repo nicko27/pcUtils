@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/validation_utils.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/validation_utils.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire fournissant des fonctions de validation pour divers formats de données.
+      Valide les noms d'hôte, FQDN, adresses IP, ports, adresses email, URLs, planifications cron, utilisateurs et groupes système.
+    </p>
+    <p class="dependency-warning">
+      Utilise les modules Python standard : <code>re</code>, <code>ipaddress</code>, <code>urllib.parse</code>, <code>logging</code>.
+      Dépendance optionnelle sur <code>plugins_utils.users_groups</code> pour valider l'existence des utilisateurs/groupes système.
+    </p>
+    <p class="sudo-warning">La vérification de l'existence des utilisateurs/groupes (si <code>check_system=True</code>) peut nécessiter des privilèges root via les commandes utilisées par <code>UserGroupCommands</code> (ex: <code>getent</code>).</p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#ValidationUtils" class="toc-link">ValidationUtils</a></li>
+        <li class="toc-item"><a href="#is_valid_hostname" class="toc-link">is_valid_hostname</a></li>
+        <li class="toc-item"><a href="#is_valid_fqdn" class="toc-link">is_valid_fqdn</a></li>
+        <li class="toc-item"><a href="#is_valid_ip_address" class="toc-link">is_valid_ip_address</a></li>
+        <li class="toc-item"><a href="#is_valid_port" class="toc-link">is_valid_port</a></li>
+        <li class="toc-item"><a href="#is_valid_email" class="toc-link">is_valid_email</a></li>
+        <li class="toc-item"><a href="#is_valid_url" class="toc-link">is_valid_url</a></li>
+        <li class="toc-item"><a href="#is_valid_cron_schedule" class="toc-link">is_valid_cron_schedule</a></li>
+        <li class="toc-item"><a href="#is_valid_user" class="toc-link">is_valid_user</a></li>
+        <li class="toc-item"><a href="#is_valid_group" class="toc-link">is_valid_group</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="ValidationUtils"><code>ValidationUtils(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe fournissant des méthodes statiques pour la validation de données.
+        Hérite de PluginUtilsBase uniquement pour l'accès potentiel au logger via <code>cls.get_logger()</code>.
+      </p>
+    </section>
+
+    <h2 class="section-title">Méthodes de Validation (Statiques)</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_valid_hostname"><code>is_valid_hostname(hostname: str, allow_underscore: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Valide un nom d'hôte selon la RFC 1123 (longueur max 253, parties max 63, pas de '-' en début/fin de partie), avec option pour autoriser les underscores.</p>
+      <dl class="param-list">
+        <dt>hostname</dt>
+        <dd><span class="param-type">(str)</span>: Le nom d'hôte à valider.</dd>
+        <dt>allow_underscore</dt>
+        <dd><span class="param-type">(bool)</span>: Autoriser les underscores (non standard mais courant). Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log (non utilisé directement).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le nom d'hôte est valide.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_valid_fqdn"><code>is_valid_fqdn(fqdn: str, allow_underscore: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Valide un nom de domaine pleinement qualifié (FQDN). Doit contenir au moins un point et respecter les règles de nom d'hôte.</p>
+      <dl class="param-list">
+        <dt>fqdn</dt>
+        <dd><span class="param-type">(str)</span>: Le FQDN à valider.</dd>
+        <dt>allow_underscore</dt>
+        <dd><span class="param-type">(bool)</span>: Autoriser les underscores dans les parties du domaine. Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log (non utilisé directement).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le FQDN est valide.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_valid_ip_address"><code>is_valid_ip_address(ip_str: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Valide une adresse IPv4 ou IPv6 en utilisant le module <code>ipaddress</code>.</p>
+      <dl class="param-list">
+        <dt>ip_str</dt>
+        <dd><span class="param-type">(str)</span>: La chaîne représentant l'adresse IP.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log (non utilisé directement).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'adresse est valide.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_valid_port"><code>is_valid_port(port: Any, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Valide un numéro de port réseau (doit être un entier entre 1 et 65535).</p>
+      <dl class="param-list">
+        <dt>port</dt>
+        <dd><span class="param-type">(Any)</span>: La valeur à vérifier (peut être int ou str).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log (non utilisé directement).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le port est valide.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_valid_email"><code>is_valid_email(email: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Valide basiquement une adresse email en utilisant une expression régulière simple (non conforme RFC 5322 complète).</p>
+       <dl class="param-list">
+        <dt>email</dt>
+        <dd><span class="param-type">(str)</span>: L'adresse email à vérifier.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log (non utilisé directement).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le format semble valide.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_valid_url"><code>is_valid_url(url: str, required_schemes: Optional[List[str]] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Valide une URL en utilisant <code>urllib.parse.urlparse</code> et vérifie optionnellement son schéma.</p>
+      <dl class="param-list">
+        <dt>url</dt>
+        <dd><span class="param-type">(str)</span>: L'URL à vérifier.</dd>
+        <dt>required_schemes</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste optionnelle de schémas autorisés (ex: ['http', 'https']). Si None, tous les schémas valides sont acceptés. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log (non utilisé directement).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'URL est structurellement valide (a un schéma et un netloc) et si son schéma est dans la liste requise (si fournie).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_valid_cron_schedule"><code>is_valid_cron_schedule(schedule_str: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Valide basiquement le format d'une planification cron (5 ou 6 champs) en utilisant une expression régulière. Ne valide pas la sémantique des plages ou des étapes.</p>
+      <dl class="param-list">
+        <dt>schedule_str</dt>
+        <dd><span class="param-type">(str)</span>: La chaîne de planification (ex: "* * * * *", "0 0 * * 1-5").</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log (non utilisé directement).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le format de base (5 champs obligatoires respectant la syntaxe) semble correct.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_valid_user"><code>is_valid_user(username: str, check_system: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Valide un nom d'utilisateur (format standard Linux) et vérifie optionnellement son existence sur le système.</p>
+      <p class="dependency-warning">La vérification système (<code>check_system=True</code>) nécessite que le module <code>UserGroupCommands</code> soit disponible.</p>
+      <p class="sudo-warning">La vérification système peut nécessiter sudo.</p>
+      <dl class="param-list">
+        <dt>username</dt>
+        <dd><span class="param-type">(str)</span>: Nom d'utilisateur à valider.</dd>
+        <dt>check_system</dt>
+        <dd><span class="param-type">(bool)</span>: Vérifier aussi l'existence de l'utilisateur sur le système via <code>UserGroupCommands.user_exists</code>. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log (non utilisé directement).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le format est valide (et l'utilisateur existe si <code>check_system=True</code>).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_valid_group"><code>is_valid_group(groupname: str, check_system: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Valide un nom de groupe (format standard Linux) et vérifie optionnellement son existence sur le système.</p>
+      <p class="dependency-warning">La vérification système (<code>check_system=True</code>) nécessite que le module <code>UserGroupCommands</code> soit disponible.</p>
+      <p class="sudo-warning">La vérification système peut nécessiter sudo.</p>
+      <dl class="param-list">
+        <dt>groupname</dt>
+        <dd><span class="param-type">(str)</span>: Nom du groupe à valider.</dd>
+        <dt>check_system</dt>
+        <dd><span class="param-type">(bool)</span>: Vérifier aussi l'existence du groupe sur le système via <code>UserGroupCommands.group_exists</code>. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log (non utilisé directement).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le format est valide (et le groupe existe si <code>check_system=True</code>).
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

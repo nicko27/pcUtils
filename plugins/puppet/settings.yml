@@ -1,0 +1,10 @@
+name: Puppet
+description: Forcage Puppet
+version: 1.0
+category: Système
+multiple: true
+ssh_debug: true
+icon: 🛠️
+# Ajout du support pour l'exécution distante
+remote_execution: false
+needs_sudo: true

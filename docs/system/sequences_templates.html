@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Séquences & Templates - pcUtils</title>
+    <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">&larr; Retour à l'accueil</a>
+            <h1>Séquences & Templates</h1>
+            <p class="subtitle">Utiliser les séquences pour orchestrer les plugins et les templates pour simplifier la configuration.</p>
+        </header>
+
+        <section class="content-section">
+            <h2>Séquences</h2>
+            <p>Les séquences permettent de définir un ensemble ordonné de plugins, avec leur configuration spécifique, qui peuvent être sélectionnés et exécutés comme une seule unité.</p>
+
+            <h3>Définition d'une Séquence</h3>
+            <p>Les séquences sont définies dans des fichiers YAML placés dans le répertoire <code>sequences/</code> à la racine du projet.</p>
+            <pre><code>
+# Exemple : sequences/installation_web_complet.yml
+
+name: "Serveur Web Complet (Apache+PHP+DB)"  # Nom affiché dans l'UI (obligatoire)
+description: "Installe Apache, PHP-FPM, MariaDB et configure un vhost." # (Optionnel)
+shortcut: "webfull"                         # (Optionnel) Raccourci pour --shortcut webfull
+
+plugins:                                    # Liste des plugins (obligatoire)
+  - name: update_system                     # Plugin simple (utilise config par défaut)
+
+  - name: install_apache
+    config:                                 # Configuration spécifique pour cette instance
+      version: "latest"
+
+  - name: install_php
+    config:
+      version: "8.1"
+      modules: ["fpm", "mysql", "gd", "curl"] # Exemple de config pour un champ checkbox_group
+
+  - name: install_mariadb
+    template: "server_prod"                 # Applique le template 'server_prod' de ce plugin
+
+  - name: configure_apache_vhost
+    config:
+      vhost_name: "mon_site_prod.com"
+      document_root: "/var/www/prod"
+      use_php_fpm: true
+      php_version: "8.1"                    # La valeur doit correspondre à celle du plugin install_php
+
+  - name: restart_services
+    config:
+      services: ["apache2", "php8.1-fpm", "mariadb"]
+            </code></pre>
+            <ul>
+                <li><span class="config-item">name</span>: Nom humainement lisible de la séquence.</li>
+                <li><span class="config-item">description</span>: Explique ce que fait la séquence.</li>
+                <li><span class="config-item">shortcut</span>: Permet de lancer la séquence rapidement en ligne de commande (<code>pcutils --auto --shortcut mon_raccourci</code>). Peut être une chaîne ou une liste de chaînes.</li>
+                <li><span class="config-item">plugins</span>: La liste ordonnée des plugins à exécuter.
+                    <ul>
+                        <li>Chaque élément peut être le <strong>nom du dossier</strong> du plugin (chaîne) si aucune configuration spécifique n'est requise.</li>
+                        <li>Ou un <strong>dictionnaire</strong> avec :
+                            <ul>
+                                <li><span class="config-item">name</span>: Nom du dossier du plugin (obligatoire).</li>
+                                <li><span class="config-item">config</span> (ou <span class="config-item">variables</span> pour compatibilité): Un dictionnaire contenant les paires <code>{nom_variable: valeur}</code> pour pré-remplir la configuration de ce plugin. Le <code>nom_variable</code> correspond à l'attribut <code>variable</code> (ou <code>id</code>) du champ défini dans le <code>settings.yml</code> du plugin.</li>
+                                <li><span class="config-item">template</span>: (Optionnel) Nom d'un template (défini dans <code>templates/&lt;nom_plugin&gt;/</code>) dont les variables seront appliquées <em>avant</em> celles définies dans <code>config</code>.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+             <span class="file-ref">[<code>choice_screen/sequence_handler.py</code>, <code>app_manager/sequence_manager.py</code>]</span>
+
+            <h3>Utilisation</h3>
+            <ul>
+                <li><strong>Interface Graphique</strong>: Les séquences apparaissent comme des cartes spéciales (<span class="class-name">PluginCard</span> avec icône ⚙️) dans l'écran de sélection (<span class="class-name">Choice</span>). Sélectionner une séquence ajoute tous les plugins qu'elle contient à la liste des plugins sélectionnés (<span class="class-name">SelectedPluginsPanel</span>). <span class="file-ref">[<code>choice_screen/choice_screen.py</code>, <code>choice_screen/plugin_card.py</code>]</span></li>
+                <li><strong>Écran de Configuration</strong>: Lorsque l'utilisateur passe à l'écran de configuration (<span class="class-name">PluginConfig</span>) après avoir sélectionné une séquence, <span class="class-name">SequenceConfigManager</span> charge les configurations définies dans le fichier YAML de la séquence et les fusionne avec les configurations par défaut des plugins. Les valeurs de la séquence ont priorité. <span class="file-ref">[<code>config_screen/sequence_config_manager.py</code>, <code>config_screen/config_screen.py</code>]</span></li>
+                <li><strong>Ligne de Commande (Mode Auto)</strong>: En utilisant <code>--auto</code> avec <code>--sequence &lt;fichier.yml&gt;</code> ou <code>--shortcut &lt;raccourci&gt;</code>, <span class="class-name">AppManager</span> et <span class="class-name">AutoConfig</span> traitent la séquence pour générer la configuration finale et lancer directement l'exécution (ou la configuration si des champs requis manquent). <span class="file-ref">[<code>app_manager/app_manager.py</code>, <code>config_screen/auto_config.py</code>]</span></li>
+            </ul>
+        </section>
+
+        <section class="content-section">
+            <h2>Templates</h2>
+            <p>Les templates offrent un moyen de sauvegarder et de réutiliser des ensembles de configurations pour un plugin spécifique.</p>
+
+            <h3>Définition d'un Template</h3>
+            <p>Les templates pour un plugin donné sont définis dans des fichiers YAML situés dans le répertoire <code>templates/&lt;nom_dossier_plugin&gt;/</code>.</p>
+            <pre><code>
+# Exemple : templates/install_mariadb/server_prod.yml
+
+name: "Serveur Production"      # Nom affiché du template (obligatoire)
+description: "Configuration MariaDB optimisée pour la production." # (Optionnel)
+
+variables:                      # Dictionnaire des valeurs à appliquer (obligatoire)
+  mariadb_version: "10.6"
+  bind_address: "0.0.0.0"
+  max_connections: 500
+  innodb_buffer_pool_size: "2G"
+  # Le nom des clés ici (ex: 'bind_address') doit correspondre
+  # à l'attribut 'variable' (ou 'id') des champs définis
+  # dans le settings.yml du plugin 'install_mariadb'.
+            </code></pre>
+            <ul>
+                <li><span class="config-item">name</span>: Nom du template affiché dans la liste déroulante.</li>
+                <li><span class="config-item">description</span>: Informations supplémentaires sur le template.</li>
+                <li><span class="config-item">variables</span>: Dictionnaire clé/valeur où les clés sont les noms des variables (ou ID) des champs du plugin et les valeurs sont celles à appliquer.</li>
+            </ul>
+            <p>Un fichier nommé <code>default.yml</code> dans le dossier d'un plugin sera considéré comme le template par défaut.</p>
+             <span class="file-ref">[<code>config_screen/template_manager.py</code>]</span>
+
+            <h3>Utilisation</h3>
+            <ul>
+                <li><strong>Chargement</strong>: <span class="class-name">TemplateManager</span> scanne le répertoire <code>templates/</code> au démarrage de l'écran de configuration pour trouver les templates associés à chaque plugin. <span class="file-ref">[<code>config_screen/template_manager.py</code>]</span></li>
+                <li><strong>Interface Utilisateur</strong>: Si des templates sont trouvés pour un plugin, un champ de sélection spécial (<span class="class-name">TemplateField</span>) est automatiquement ajouté en haut du conteneur de configuration de ce plugin (<span class="class-name">PluginConfigContainer</span>). <span class="file-ref">[<code>config_screen/template_field.py</code>, <code>config_screen/plugin_config_container.py</code>]</span></li>
+                <li><strong>Application</strong>: Lorsque l'utilisateur choisit un template dans la liste déroulante :
+                    <ul>
+                        <li><span class="class-name">TemplateField</span> déclenche un événement.</li>
+                        <li><span class="class-name">PluginConfigContainer</span> récupère les <code>variables</code> du template sélectionné.</li>
+                        <li>Il parcourt ensuite ses champs enfants et appelle leur méthode <span class="method-name">set_value()</span> (ou modifie directement <code>.value</code>) pour chaque variable correspondante trouvée dans le template.</li>
+                        <li>Si l'option "-- Aucun template --" est sélectionnée, tous les champs du plugin sont réinitialisés à leur valeur par défaut (via la méthode <span class="method-name">restore_default()</span> de chaque champ).</li>
+                    </ul>
+                    <span class="file-ref">[<code>config_screen/template_field.py</code>, <code>config_screen/plugin_config_container.py</code>]</span>
+                </li>
+                <li><strong>Séquences et Templates</strong>: Une séquence peut spécifier un template à appliquer pour un plugin donné (<code>template: "nom_template"</code>). Ce template sera appliqué <em>avant</em> les valeurs spécifiques définies dans la section <code>config</code> de la séquence pour ce plugin. <span class="file-ref">[<code>config_screen/sequence_config_manager.py</code>]</span></li>
+            </ul>
+        </section>
+
+        <footer>
+            <p>Documentation pcUtils</p>
+        </footer>
+    </div>
+</body>
+</html>

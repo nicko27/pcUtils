@@ -1,0 +1,8 @@
+name: Les Andelys BT Couleurs
+description:
+variables:
+  printer_ip: 150.27.11.220
+  printer_model: KM250iC.yml
+  printer_name: BT_COULEURS
+  printer_a3: false
+  printer_all: true

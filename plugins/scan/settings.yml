@@ -1,0 +1,40 @@
+name: Configuration serveur pour Numerisation
+description: Configuration de l'utilisateur scan et droit sur Numerisation
+version: 1.0
+category: Installation
+multiple: false
+icon: 📠
+sudo: true
+remote_execution: false
+config_fields:
+  user:
+    type: text
+    label: Utilisateur à configurer
+    description: Utilisateur à configurer (sans espaces)
+    default: "scan"
+    required: true
+
+  password:
+    type: text
+    label: Mot de passe de l'utilisateur
+    description: Mot de passe de l'utilisateur
+    default: "scan"
+    required: true
+
+  create_scan_dir:
+    type: checkbox
+    label: Créer le dossier pour la numérisation (si nécessaire) et Appliquer les acls sur le dossier
+    description: Créer le dossier pour la numérisation (si nécessaire) et Appliquer les acls sur le dossier
+    default: true
+    required: true
+
+  scan_directory:
+    type: directory
+    label: Dossier à configurer
+    description: Dossier à créer (si besoin) et configurer
+    default: "/partage/commun/Numerisation"
+    required: true
+    enabled_if:
+      conditions:
+        - field_id: "create_scan_dir"
+          required_value: true

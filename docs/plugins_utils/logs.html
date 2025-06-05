@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/logs.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/logs.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour la gestion et l'analyse des fichiers journaux système.
+      Combine la gestion de logrotate, journald et l'analyse de contenu/taille.
+      Utilise les commandes <code>logrotate</code>, <code>journalctl</code>, <code>find</code>, <code>du</code>, <code>grep</code>, <code>sort</code>, <code>uniq</code> (via des appels systèmes).
+    </p>
+    <p class="dependency-warning">
+      Nécessite les commandes <code>logrotate</code>, <code>journalctl</code>, <code>find</code>, <code>du</code>, <code>grep</code>, <code>sort</code>, <code>uniq</code>, <code>cat</code>, <code>tail</code>, <code>rm</code>, <code>tar</code> (si ArchiveCommands indisponible).
+      Dépendance optionnelle sur <code>plugins_utils.archive</code> pour <code>archive_logs</code>.
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#LogCommands" class="toc-link">LogCommands</a></li>
+        <li class="toc-item"><a href="#check_logrotate_config" class="toc-link">check_logrotate_config</a></li>
+        <li class="toc-item"><a href="#force_logrotate" class="toc-link">force_logrotate</a></li>
+        <li class="toc-item"><a href="#list_log_files" class="toc-link">list_log_files</a></li>
+        <li class="toc-item"><a href="#archive_logs" class="toc-link">archive_logs</a></li>
+        <li class="toc-item"><a href="#purge_old_logs" class="toc-link">purge_old_logs</a></li>
+        <li class="toc-item"><a href="#purge_large_logs" class="toc-link">purge_large_logs</a></li>
+        <li class="toc-item"><a href="#journald_vacuum_size" class="toc-link">journald_vacuum_size</a></li>
+        <li class="toc-item"><a href="#journald_vacuum_time" class="toc-link">journald_vacuum_time</a></li>
+        <li class="toc-item"><a href="#find_large_logs" class="toc-link">find_large_logs</a></li>
+        <li class="toc-item"><a href="#find_frequent_lines" class="toc-link">find_frequent_lines</a></li>
+        <li class="toc-item"><a href="#search_log_errors" class="toc-link">search_log_errors</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="LogCommands"><code>LogCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour la gestion et l'analyse des logs système.
+        Hérite de PluginUtilsBase pour l'exécution de commandes.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Gestion Logrotate</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="check_logrotate_config"><code>check_logrotate_config(service_or_logpath: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]</code></h4>
+      <p class="description">Vérifie la configuration logrotate pour un service ou un chemin de log en cherchant dans <code>/etc/logrotate.d/</code> ou en utilisant <code>grep</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire les fichiers de configuration.</p>
+      <dl class="param-list">
+        <dt>service_or_logpath</dt>
+        <dd><span class="param-type">(str)</span>: Nom du service (ex: 'nginx') ou chemin du fichier log (ex: '/var/log/nginx/access.log').</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Any]]</span> - Dictionnaire contenant le chemin du fichier de conf trouvé et les directives parsées (simpliste), ou None si aucune configuration spécifique n'est trouvée.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="force_logrotate"><code>force_logrotate(config_file: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Force l'exécution de logrotate via <code>logrotate -f</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>config_file</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin vers un fichier de configuration logrotate spécifique. Si None, utilise la configuration système globale (<code>/etc/logrotate.conf</code>). Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'exécution a réussi.
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion des Fichiers Logs</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="list_log_files"><code>list_log_files(directories: Optional[List[str]] = None, min_size_mb: Optional[float] = None, older_than_days: Optional[int] = None, pattern: str = "*.log*", log_levels: Optional[Dict[str, str]] = None) -> List[str]</code></h4>
+      <p class="description">Liste les fichiers journaux dans les répertoires spécifiés (et sous-dossiers) selon des critères de taille, d'âge et de nom.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour accéder à certains répertoires/fichiers.</p>
+      <dl class="param-list">
+        <dt>directories</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Répertoires à scanner. Défaut: ['/var/log'].</dd>
+        <dt>min_size_mb</dt>
+        <dd><span class="param-type">(Optional[float])</span>: Taille minimale en Mo. Défaut: None.</dd>
+        <dt>older_than_days</dt>
+        <dd><span class="param-type">(Optional[int])</span>: Âge minimum en jours (basé sur mtime). Défaut: None.</dd>
+        <dt>pattern</dt>
+        <dd><span class="param-type">(str)</span>: Motif de nom de fichier (style glob). Défaut: "*.log*".</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[str]</span> - Liste des chemins complets des fichiers trouvés.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="archive_logs"><code>archive_logs(log_files: List[str], output_archive: Union[str, Path], compression: str = 'gz', log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Crée une archive (tar) contenant les fichiers journaux spécifiés. Utilise <code>ArchiveCommands</code> si disponible, sinon la commande <code>tar</code> directe.</p>
+      <p class="sudo-warning">Nécessite sudo pour lire les fichiers logs et potentiellement écrire l'archive.</p>
+      <dl class="param-list">
+        <dt>log_files</dt>
+        <dd><span class="param-type">(List[str])</span>: Liste des chemins complets des fichiers logs à archiver.</dd>
+        <dt>output_archive</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier archive à créer (ex: /tmp/logs.tar.gz).</dd>
+        <dt>compression</dt>
+        <dd><span class="param-type">(str)</span>: Type de compression ('gz', 'bz2', 'xz', 'zst'). Défaut: 'gz'.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'archivage a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="purge_old_logs"><code>purge_old_logs(directories: Optional[List[str]] = None, older_than_days: int = 30, pattern: str = "*.log*", dry_run: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime les fichiers journaux plus vieux qu'un certain nombre de jours dans les répertoires spécifiés (et sous-dossiers). <strong>Opération destructive !</strong></p>
+      <p class="sudo-warning">Nécessite sudo pour supprimer les fichiers logs.</p>
+      <dl class="param-list">
+        <dt>directories</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Répertoires à scanner. Défaut: ['/var/log'].</dd>
+        <dt>older_than_days</dt>
+        <dd><span class="param-type">(int)</span>: Supprimer les fichiers plus vieux que N jours (mtime). Défaut: 30.</dd>
+        <dt>pattern</dt>
+        <dd><span class="param-type">(str)</span>: Motif de nom de fichier à cibler. Défaut: "*.log*".</dd>
+        <dt>dry_run</dt>
+        <dd><span class="param-type">(bool)</span>: Si True, simule seulement la suppression. <strong>Mettre à False pour supprimer réellement.</strong> Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'opération (ou la simulation) a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="purge_large_logs"><code>purge_large_logs(patterns: List[str], directories: Optional[List[str]] = None, size_threshold_mb: int = 100, dry_run: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime les fichiers journaux dépassant une certaine taille et correspondant aux motifs spécifiés (incluant les sous-dossiers). <strong>Opération destructive !</strong></p>
+      <p class="sudo-warning">Nécessite sudo pour supprimer les fichiers logs.</p>
+      <dl class="param-list">
+        <dt>patterns</dt>
+        <dd><span class="param-type">(List[str])</span>: Liste de motifs de nom de fichier (style glob, ex: ["*.log", "access.log*"]).</dd>
+        <dt>directories</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Répertoires à scanner. Défaut: ['/var/log'].</dd>
+        <dt>size_threshold_mb</dt>
+        <dd><span class="param-type">(int)</span>: Taille minimale en Mo pour considérer la suppression. Défaut: 100.</dd>
+        <dt>dry_run</dt>
+        <dd><span class="param-type">(bool)</span>: Si True, simule seulement la suppression. <strong>Mettre à False pour supprimer réellement.</strong> Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'opération (ou la simulation) a réussi.
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion Journald</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="journald_vacuum_size"><code>journald_vacuum_size(max_size_mb: int, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Réduit la taille des logs journald à une taille maximale via <code>journalctl --vacuum-size=...</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>max_size_mb</dt>
+        <dd><span class="param-type">(int)</span>: Taille maximale souhaitée en Mo.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le nettoyage a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="journald_vacuum_time"><code>journald_vacuum_time(time_spec: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime les entrées journald plus anciennes qu'une date/durée via <code>journalctl --vacuum-time=...</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>time_spec</dt>
+        <dd><span class="param-type">(str)</span>: Spécification de temps (ex: '2days', '1weeks', '1 month ago', '2023-01-01').</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le nettoyage a réussi.
+      </div>
+    </section>
+
+    <h2 class="section-title">Analyse de Logs</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="find_large_logs"><code>find_large_logs(directories: Optional[List[str]] = None, size_threshold_mb: int = 100, log_levels: Optional[Dict[str, str]] = None) -> List[Tuple[str, int]]</code></h4>
+      <p class="description">Trouve les fichiers logs dépassant une certaine taille dans les répertoires spécifiés (et sous-dossiers).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour accéder à certains répertoires/fichiers.</p>
+      <dl class="param-list">
+        <dt>directories</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Répertoires à scanner. Défaut: ['/var/log'].</dd>
+        <dt>size_threshold_mb</dt>
+        <dd><span class="param-type">(int)</span>: Seuil de taille en Mo. Défaut: 100.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[Tuple[str, int]]</span> - Liste de tuples (chemin_fichier, taille_en_Mo) triée par taille décroissante.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="find_frequent_lines"><code>find_frequent_lines(log_file: Union[str, Path], top_n: int = 10, patterns_to_ignore: Optional[List[str]] = None, log_levels: Optional[Dict[str, str]] = None) -> List[Tuple[int, str]]</code></h4>
+      <p class="description">Identifie les lignes les plus fréquentes dans un fichier log.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier log.</p>
+      <dl class="param-list">
+        <dt>log_file</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier log.</dd>
+        <dt>top_n</dt>
+        <dd><span class="param-type">(int)</span>: Nombre de lignes les plus fréquentes à retourner. Défaut: 10.</dd>
+        <dt>patterns_to_ignore</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste d'expressions régulières pour ignorer certaines lignes.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[Tuple[int, str]]</span> - Liste de tuples (count, line) triée par fréquence décroissante.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="search_log_errors"><code>search_log_errors(log_file: Union[str, Path], error_patterns: Optional[List[str]] = None, time_since: Optional[str] = None, max_lines: int = 100, log_levels: Optional[Dict[str, str]] = None) -> List[str]</code></h4>
+      <p class="description">Recherche des erreurs ou motifs spécifiques dans un fichier log ou dans le journal systemd (journald).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier log ou journald.</p>
+      <dl class="param-list">
+        <dt>log_file</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier log OU la chaîne 'journald' pour chercher dans le journal systemd.</dd>
+        <dt>error_patterns</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste d'expressions régulières à rechercher. Si None, utilise des motifs d'erreur courants (<code>LogCommands.COMMON_ERROR_PATTERNS</code>). Défaut: None.</dd>
+        <dt>time_since</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Ne chercher que les entrées depuis ce moment (format 'journalctl --since', ex: '1 hour ago'). Uniquement applicable si <code>log_file='journald'</code>. Défaut: None.</dd>
+        <dt>max_lines</dt>
+        <dd><span class="param-type">(int)</span>: Nombre maximum de lignes d'erreur à retourner. Défaut: 100.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[str]</span> - Liste des lignes contenant les erreurs trouvées (limitée par <code>max_lines</code>).
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

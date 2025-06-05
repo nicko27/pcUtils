@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/selinux_apparmor.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/selinux_apparmor.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour interagir avec les systèmes de contrôle d'accès mandatoires
+      SELinux et AppArmor via leurs commandes système respectives.
+    </p>
+    <p class="dependency-warning">
+      Nécessite les commandes SELinux (<code>sestatus</code>, <code>getsebool</code>, <code>setsebool</code>, <code>restorecon</code>, <code>setenforce</code>) et/ou AppArmor (<code>aa-status</code>, <code>aa-complain</code>, <code>aa-enforce</code>) selon le système MAC actif.
+      Nécessite également <code>which</code>, <code>cat</code>, <code>cp</code>, <code>test</code>.
+    </p>
+     <p class="sudo-warning">La plupart des opérations (modification de mode, booléens persistants, restauration de contexte, statut/modification AppArmor) nécessitent des privilèges root.</p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#MandatoryAccessControl" class="toc-link">MandatoryAccessControl</a></li>
+        <li class="toc-item"><a href="#detect_mac_system" class="toc-link">detect_mac_system</a></li>
+        <li class="toc-item"><a href="#get_selinux_status" class="toc-link">get_selinux_status</a></li>
+        <li class="toc-item"><a href="#set_selinux_mode_runtime" class="toc-link">set_selinux_mode_runtime</a></li>
+        <li class="toc-item"><a href="#set_selinux_mode_persistent" class="toc-link">set_selinux_mode_persistent</a></li>
+        <li class="toc-item"><a href="#get_selinux_boolean" class="toc-link">get_selinux_boolean</a></li>
+        <li class="toc-item"><a href="#set_selinux_boolean" class="toc-link">set_selinux_boolean</a></li>
+        <li class="toc-item"><a href="#restorecon" class="toc-link">restorecon</a></li>
+        <li class="toc-item"><a href="#get_apparmor_status" class="toc-link">get_apparmor_status</a></li>
+        <li class="toc-item"><a href="#set_apparmor_profile_mode" class="toc-link">set_apparmor_profile_mode</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="MandatoryAccessControl"><code>MandatoryAccessControl(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour interagir avec SELinux et AppArmor.
+        Hérite de PluginUtilsBase pour l'exécution de commandes.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Méthodes Générales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="detect_mac_system"><code>detect_mac_system(log_levels: Optional[Dict[str, str]] = None) -> str</code></h4>
+      <p class="description">Tente de détecter quel système MAC (SELinux ou AppArmor) est actif en utilisant <code>sestatus</code> et <code>aa-status</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour exécuter <code>aa-status</code>.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">str</span> - Une des constantes de classe : <code>MAC_SYSTEM_SELINUX</code>, <code>MAC_SYSTEM_APPARMOR</code>, <code>MAC_SYSTEM_NONE</code>, ou <code>MAC_SYSTEM_UNKNOWN</code>.
+      </div>
+    </section>
+
+    <h2 class="section-title">Fonctions SELinux</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_selinux_status"><code>get_selinux_status(log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, str]]</code></h4>
+      <p class="description">Récupère le statut de SELinux via <code>sestatus</code>.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, str]]</span> - Dictionnaire avec les informations (selinux_status, current_mode, mode_from_config, policy_mls_status, policy_deny_unknown_status, max_kernel_policy_version) ou un dictionnaire {'selinux_status': 'disabled'} si désactivé/non trouvé, ou None si erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_selinux_mode_runtime"><code>set_selinux_mode_runtime(enforcing: bool, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Change le mode SELinux (Enforcing/Permissive) pour la session courante via <code>setenforce</code>. Ne persiste pas après redémarrage.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>enforcing</dt>
+        <dd><span class="param-type">(bool)</span>: True pour passer en mode Enforcing (1), False pour Permissive (0).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_selinux_mode_persistent"><code>set_selinux_mode_persistent(mode: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Change le mode SELinux de manière persistante en modifiant la ligne <code>SELINUX=...</code> dans <code>/etc/selinux/config</code> (ou <code>/etc/sysconfig/selinux</code>).</p>
+      <p class="sudo-warning">Nécessite des privilèges root. Un redémarrage est nécessaire pour appliquer le changement.</p>
+      <dl class="param-list">
+        <dt>mode</dt>
+        <dd><span class="param-type">(str)</span>: Mode souhaité : 'enforcing', 'permissive', ou 'disabled'.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la modification du fichier a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_selinux_boolean"><code>get_selinux_boolean(boolean_name: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[bool]</code></h4>
+      <p class="description">Récupère la valeur actuelle ('on' ou 'off') d'un booléen SELinux via <code>getsebool</code>.</p>
+      <dl class="param-list">
+        <dt>boolean_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du booléen (ex: 'httpd_can_network_connect').</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[bool]</span> - True si 'on', False si 'off', ou None si le booléen est inconnu ou en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_selinux_boolean"><code>set_selinux_boolean(boolean_name: str, value: bool, persistent: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit la valeur d'un booléen SELinux via <code>setsebool</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root si <code>persistent=True</code>.</p>
+      <dl class="param-list">
+        <dt>boolean_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du booléen.</dd>
+        <dt>value</dt>
+        <dd><span class="param-type">(bool)</span>: Nouvelle valeur (True pour 'on', False pour 'off').</dd>
+        <dt>persistent</dt>
+        <dd><span class="param-type">(bool)</span>: Rendre le changement persistant après redémarrage (<code>-P</code>). Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="restorecon"><code>restorecon(path: Union[str, Path], recursive: bool = False, force: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Restaure le contexte de sécurité SELinux par défaut pour un fichier ou dossier via <code>restorecon -v</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier ou dossier.</dd>
+        <dt>recursive</dt>
+        <dd><span class="param-type">(bool)</span>: Appliquer récursivement (<code>-R</code>). Défaut: False.</dd>
+        <dt>force</dt>
+        <dd><span class="param-type">(bool)</span>: Forcer la restauration même si le contexte semble correct (<code>-F</code>). Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <h2 class="section-title">Fonctions AppArmor</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_apparmor_status"><code>get_apparmor_status(log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]</code></h4>
+      <p class="description">Récupère le statut d'AppArmor via <code>aa-status</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Any]]</span> - Dictionnaire avec les informations (module_loaded, profiles_loaded, enforce_mode_count, complain_mode_count, etc.) ou un dictionnaire {'apparmor_status': 'disabled'} si désactivé/non trouvé, ou None si erreur de parsing.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_apparmor_profile_mode"><code>set_apparmor_profile_mode(profile_name: str, mode: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Change le mode d'un profil AppArmor (complain ou enforce) via <code>aa-complain</code> ou <code>aa-enforce</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>profile_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du profil (ex: '/usr/sbin/ntpd') ou chemin du fichier de profil.</dd>
+        <dt>mode</dt>
+        <dd><span class="param-type">(str)</span>: Mode souhaité : 'complain' ou 'enforce'.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

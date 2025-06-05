@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/ocs_manager.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/ocs_manager.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour interagir avec OCS Inventory NG (Agent et Serveur API REST).
+      Utilise la commande <code>ocsinventory-agent</code> et potentiellement la bibliothèque <code>requests</code> pour l'API REST.
+    </p>
+    <p class="dependency-warning">
+      Nécessite la commande <code>ocsinventory-agent</code> pour les opérations locales.
+      Nécessite la bibliothèque Python <strong><code>requests</code></strong> (<code>pip install requests</code>) pour interagir avec l'API REST du serveur OCS.
+      Utilise <code>xml.etree.ElementTree</code> pour parser la configuration XML de l'agent.
+    </p>
+    <p class="sudo-warning">L'exécution de l'agent (<code>run_inventory</code>) nécessite généralement des privilèges root.</p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#OcsManagerCommands" class="toc-link">OcsManagerCommands</a></li>
+        <li class="toc-item"><a href="#run_inventory" class="toc-link">run_inventory</a></li>
+        <li class="toc-item"><a href="#get_agent_config" class="toc-link">get_agent_config</a></li>
+        <li class="toc-item"><a href="#get_agent_log_path" class="toc-link">get_agent_log_path</a></li>
+        <li class="toc-item"><a href="#check_last_run_status_from_log" class="toc-link">check_last_run_status_from_log</a></li>
+        <li class="toc-item"><a href="#get_computer_id" class="toc-link">get_computer_id</a> (API)</li>
+        <li class="toc-item"><a href="#get_computer_details" class="toc-link">get_computer_details</a> (API)</li>
+        <li class="toc-item"><a href="#check_administrative_data" class="toc-link">check_administrative_data</a> (API)</li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="OcsManagerCommands"><code>OcsManagerCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour interagir avec l'agent OCS Inventory et le serveur via API REST.
+        Hérite de PluginUtilsBase pour l'exécution de commandes.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Opérations Agent (Ligne de Commande)</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="run_inventory"><code>run_inventory(force: bool = False, tag: Optional[str] = None, server_url: Optional[str] = None, local_path: Optional[str] = None, options: Optional[List[str]] = None, timeout: int = 600, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Déclenche un inventaire OCS avec l'agent local via <code>ocsinventory-agent</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>force</dt>
+        <dd><span class="param-type">(bool)</span>: Forcer l'envoi même si l'inventaire n'a pas changé (<code>--force</code>). Défaut: False.</dd>
+        <dt>tag</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Assigner un TAG à cette machine (<code>--tag</code>). Défaut: None.</dd>
+        <dt>server_url</dt>
+        <dd><span class="param-type">(Optional[str])</span>: URL du serveur OCS à contacter (<code>--server</code>, remplace celle de la config). Défaut: None.</dd>
+        <dt>local_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin pour sauvegarder l'inventaire localement (<code>--local</code>) au lieu de l'envoyer. Défaut: None.</dd>
+        <dt>options</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste d'options brutes supplémentaires pour l'agent. Défaut: None.</dd>
+        <dt>timeout</dt>
+        <dd><span class="param-type">(int)</span>: Timeout pour l'exécution de l'agent en secondes. Défaut: 600.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'agent s'est exécuté sans erreur majeure (code retour 0 et pas d'erreur critique dans la sortie). Ne garantit pas que le serveur a accepté l'inventaire.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_agent_config"><code>get_agent_config(log_levels: Optional[Dict[str, str]] = None) -> Dict[str, str]</code></h4>
+      <p class="description">Lit et parse la configuration de l'agent OCS depuis son fichier XML (chemin auto-détecté).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier de configuration.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Dict[str, str]</span> - Dictionnaire des paramètres de configuration trouvés {PARAMETRE_MAJ: valeur}. Retourne un dict vide si le fichier n'est pas trouvé ou en cas d'erreur de parsing.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_agent_log_path"><code>get_agent_log_path(log_levels: Optional[Dict[str, str]] = None) -> Optional[str]</code></h4>
+      <p class="description">Tente de déterminer le chemin du fichier log de l'agent en lisant la configuration ou en utilisant un chemin par défaut.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier de configuration.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[str]</span> - Chemin du fichier log ou None si non déterminé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="check_last_run_status_from_log"><code>check_last_run_status_from_log(log_path: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> Optional[bool]</code></h4>
+      <p class="description">Analyse les dernières lignes du fichier log de l'agent OCS pour déterminer le succès de la dernière exécution.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier log.</p>
+      <dl class="param-list">
+        <dt>log_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin vers le fichier log. Si None, tente de le déterminer automatiquement. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[bool]</span> - True si succès détecté, False si erreur détectée, None si impossible de déterminer ou si le fichier log est inaccessible.
+      </div>
+    </section>
+
+    <h2 class="section-title">Opérations Serveur (API REST)</h2>
+    <p class="dependency-warning">Les méthodes suivantes nécessitent la bibliothèque Python <code>requests</code>.</p>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_computer_id"><code>get_computer_id(deviceid: str, server_url: str, user: Optional[str], password: Optional[str], log_levels: Optional[Dict[str, str]] = None) -> Optional[int]</code></h4>
+      <p class="description">Trouve l'ID interne OCS d'une machine via son DEVICEID en interrogeant l'API REST du serveur.</p>
+      <dl class="param-list">
+        <dt>deviceid</dt>
+        <dd><span class="param-type">(str)</span>: Le DEVICEID unique de la machine (souvent basé sur le nom d'hôte et l'adresse MAC).</dd>
+        <dt>server_url</dt>
+        <dd><span class="param-type">(str)</span>: URL de base du serveur OCS (ex: "http://ocs.example.com").</dd>
+        <dt>user</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Nom d'utilisateur pour l'authentification API.</dd>
+        <dt>password</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Mot de passe pour l'authentification API.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[int]</span> - L'ID OCS de la machine ou None si non trouvé ou en cas d'erreur API.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_computer_details"><code>get_computer_details(ocs_id: int, section: Optional[str] = None, **api_kwargs) -> Optional[Dict]</code></h4>
+      <p class="description">Récupère les détails d'un ordinateur via son ID OCS depuis l'API REST.</p>
+      <dl class="param-list">
+        <dt>ocs_id</dt>
+        <dd><span class="param-type">(int)</span>: ID interne OCS de l'ordinateur.</dd>
+        <dt>section</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Section spécifique de l'inventaire à récupérer (ex: 'hardware', 'software', 'administrative_data'). Si None, récupère les détails généraux. Défaut: None.</dd>
+        <dt>**api_kwargs</dt>
+        <dd>Arguments pour la connexion API passés à <code>_get_api_client</code> (server_url, user, password, timeout).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict]</span> - Dictionnaire contenant les détails de l'ordinateur (ou de la section) ou None en cas d'erreur API.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="check_administrative_data"><code>check_administrative_data(ocs_id: int, data_key: str, expected_value: str, **api_kwargs) -> bool</code></h4>
+      <p class="description">Vérifie si une donnée administrative spécifique (TAG ou autre) a la valeur attendue sur le serveur OCS via l'API REST.</p>
+      <dl class="param-list">
+        <dt>ocs_id</dt>
+        <dd><span class="param-type">(int)</span>: ID interne OCS de l'ordinateur.</dd>
+        <dt>data_key</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la donnée administrative (ex: 'TAG', 'ASSET_NUMBER').</dd>
+        <dt>expected_value</dt>
+        <dd><span class="param-type">(str)</span>: Valeur attendue pour cette donnée.</dd>
+        <dt>**api_kwargs</dt>
+        <dd>Arguments pour la connexion API passés à <code>_get_api_client</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la donnée existe et a la valeur attendue. False sinon ou en cas d'erreur API.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

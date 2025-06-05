@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/mozilla_prefs.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/mozilla_prefs.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour la gestion complète des fichiers de configuration et préférences
+      des applications Mozilla (Firefox, Thunderbird). Fournit des fonctionnalités avancées pour lire, écrire et manipuler les fichiers <code>prefs.js</code>,
+      <code>user.js</code>, <code>mozilla.cfg</code>, <code>policies.json</code> et autres fichiers de configuration.
+    </p>
+    <p class="dependency-warning">
+      Dépend de <code>plugins_utils.config_files</code>. Utilise les modules Python standard : <code>os</code>, <code>re</code>, <code>json</code>, <code>shutil</code>, <code>configparser</code>, <code>uuid</code>, <code>pathlib</code>.
+    </p>
+    <p class="sudo-warning">Certaines opérations (lecture/écriture de fichiers de configuration système ou de profils utilisateur autres que celui courant) peuvent nécessiter des privilèges root.</p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#MozillaPrefsCommands" class="toc-link">MozillaPrefsCommands</a></li>
+        <li class="toc-item"><a href="#read_prefs_file" class="toc-link">read_prefs_file</a></li>
+        <li class="toc-item"><a href="#write_prefs_file" class="toc-link">write_prefs_file</a></li>
+        <li class="toc-item"><a href="#get_pref" class="toc-link">get_pref</a></li>
+        <li class="toc-item"><a href="#set_pref" class="toc-link">set_pref</a></li>
+        <li class="toc-item"><a href="#remove_pref" class="toc-link">remove_pref</a></li>
+        <li class="toc-item"><a href="#get_prefs_by_prefix" class="toc-link">get_prefs_by_prefix</a></li>
+        <li class="toc-item"><a href="#set_multiple_prefs" class="toc-link">set_multiple_prefs</a></li>
+        <li class="toc-item"><a href="#find_profile_path" class="toc-link">find_profile_path</a></li>
+        <li class="toc-item"><a href="#backup_prefs_file" class="toc-link">backup_prefs_file</a></li>
+        <li class="toc-item"><a href="#read_policies_json" class="toc-link">read_policies_json</a></li>
+        <li class="toc-item"><a href="#write_policies_json" class="toc-link">write_policies_json</a></li>
+        <li class="toc-item"><a href="#configure_firefox_enterprise_policies" class="toc-link">configure_firefox_enterprise_policies</a></li>
+        <li class="toc-item"><a href="#read_cfg_file" class="toc-link">read_cfg_file</a></li>
+        <li class="toc-item"><a href="#write_cfg_file" class="toc-link">write_cfg_file</a></li>
+        <li class="toc-item"><a href="#add_lockpref_to_cfg" class="toc-link">add_lockpref_to_cfg</a></li>
+        <li class="toc-item"><a href="#add_defaultpref_to_cfg" class="toc-link">add_defaultpref_to_cfg</a></li>
+        <li class="toc-item"><a href="#configure_autoconfig" class="toc-link">configure_autoconfig</a></li>
+        <li class="toc-item"><a href="#get_thunderbird_account_settings" class="toc-link">get_thunderbird_account_settings</a></li>
+        <li class="toc-item"><a href="#set_thunderbird_account_setting" class="toc-link">set_thunderbird_account_setting</a></li>
+        <li class="toc-item"><a href="#configure_thunderbird_proxy" class="toc-link">configure_thunderbird_proxy</a></li>
+        <li class="toc-item"><a href="#configure_thunderbird_filters" class="toc-link">configure_thunderbird_filters</a></li>
+        <li class="toc-item"><a href="#update_lightning_calendar" class="toc-link">update_lightning_calendar</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="MozillaPrefsCommands"><code>MozillaPrefsCommands(ConfigFileCommands)</code></h3>
+      <p class="description">
+        Classe pour manipuler les fichiers de préférences Mozilla (Firefox, Thunderbird).
+        Hérite de <code>ConfigFileCommands</code> pour réutiliser ses fonctionnalités de base de gestion de fichiers.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Gestion des Fichiers prefs.js / user.js</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="read_prefs_file"><code>read_prefs_file(path: Union[str, Path], log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]</code></h4>
+      <p class="description">Lit un fichier de préférences Mozilla (<code>prefs.js</code> ou <code>user.js</code>) en utilisant une analyse regex pour extraire les paires clé/valeur.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier si ce n'est pas celui de l'utilisateur courant.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier de préférences.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Any]]</span> - Dictionnaire des préférences {nom: valeur} ou None en cas d'erreur de lecture. Les valeurs sont converties en types Python appropriés (bool, int, float, str).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="write_prefs_file"><code>write_prefs_file(path: Union[str, Path], prefs: Dict[str, Any], backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Écrit un dictionnaire de préférences dans un fichier <code>prefs.js</code> ou <code>user.js</code>, en formatant les valeurs correctement.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier de préférences.</dd>
+        <dt>prefs</dt>
+        <dd><span class="param-type">(Dict[str, Any])</span>: Dictionnaire des préférences à écrire.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'écriture réussit.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_pref"><code>get_pref(path: Union[str, Path], pref_name: str, default: Any = None, log_levels: Optional[Dict[str, str]] = None) -> Any</code></h4>
+      <p class="description">Récupère une préférence spécifique d'un fichier de préférences.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>pref_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la préférence.</dd>
+        <dt>default</dt>
+        <dd><span class="param-type">(Any)</span>: Valeur par défaut. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Any</span> - Valeur de la préférence ou défaut.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_pref"><code>set_pref(path: Union[str, Path], pref_name: str, value: Any, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit une préférence dans un fichier de préférences.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>pref_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la préférence.</dd>
+        <dt>value</dt>
+        <dd><span class="param-type">(Any)</span>: Nouvelle valeur.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="remove_pref"><code>remove_pref(path: Union[str, Path], pref_name: str, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime une préférence d'un fichier de préférences.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>pref_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la préférence à supprimer.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès (ou si la préférence n'existait pas).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_prefs_by_prefix"><code>get_prefs_by_prefix(path: Union[str, Path], prefix: str, log_levels: Optional[Dict[str, str]] = None) -> Dict[str, Any]</code></h4>
+      <p class="description">Récupère toutes les préférences dont le nom commence par un préfixe spécifique.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>prefix</dt>
+        <dd><span class="param-type">(str)</span>: Préfixe des noms de préférences.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Dict[str, Any]</span> - Dictionnaire des préférences filtrées.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_multiple_prefs"><code>set_multiple_prefs(path: Union[str, Path], prefs_to_set: Dict[str, Any], backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit plusieurs préférences en une seule opération d'écriture.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>prefs_to_set</dt>
+        <dd><span class="param-type">(Dict[str, Any])</span>: Dictionnaire des préférences {nom: valeur} à définir.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion des Profils et Fichiers Spécifiques</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="find_profile_path"><code>find_profile_path(app_name: str = "thunderbird", profile_name: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> Optional[Path]</code></h4>
+      <p class="description">Trouve le chemin d'un profil Mozilla (Firefox ou Thunderbird) en analysant <code>profiles.ini</code> dans les emplacements standards.</p>
+      <dl class="param-list">
+        <dt>app_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'application ('thunderbird' ou 'firefox'). Défaut: 'thunderbird'.</dd>
+        <dt>profile_name</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Nom du profil à rechercher ou None pour utiliser le profil par défaut. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Path]</span> - Chemin du profil ou None si non trouvé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="backup_prefs_file"><code>backup_prefs_file(path: Union[str, Path], log_levels: Optional[Dict[str, str]] = None) -> Optional[str]</code></h4>
+      <p class="description">Crée une sauvegarde d'un fichier de préférences avec un timestamp.</p>
+      <p class="sudo-warning">Peut nécessiter sudo si le fichier ou le dossier parent n'est pas accessible.</p>
+       <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier à sauvegarder.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[str]</span> - Chemin de la sauvegarde ou None en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="read_policies_json"><code>read_policies_json(path: Union[str, Path], log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]</code></h4>
+      <p class="description">Lit un fichier <code>policies.json</code> de Mozilla.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier (ex: dans le répertoire d'installation).</p>
+       <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier policies.json.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Any]]</span> - Structure de politiques ou None en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="write_policies_json"><code>write_policies_json(path: Union[str, Path], policies: Dict[str, Any], backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Écrit un dictionnaire de politiques dans un fichier <code>policies.json</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier (ex: dans le répertoire d'installation).</p>
+       <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier policies.json.</dd>
+        <dt>policies</dt>
+        <dd><span class="param-type">(Dict[str, Any])</span>: Dictionnaire des politiques.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="configure_firefox_enterprise_policies"><code>configure_firefox_enterprise_policies(policies: Dict[str, Any], install_dir: Optional[Union[str, Path]] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Configure les politiques d'entreprise pour Firefox en créant/modifiant <code>policies.json</code> dans le répertoire <code>distribution</code> du dossier d'installation.</p>
+      <p class="sudo-warning">Nécessite sudo pour écrire dans le répertoire d'installation de Firefox.</p>
+       <dl class="param-list">
+        <dt>policies</dt>
+        <dd><span class="param-type">(Dict[str, Any])</span>: Dictionnaire des politiques à configurer (sera encapsulé dans {"policies": ...}).</dd>
+        <dt>install_dir</dt>
+        <dd><span class="param-type">(Optional[Union[str, Path]])</span>: Répertoire d'installation de Firefox ou None pour auto-détection.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="read_cfg_file"><code>read_cfg_file(path: Union[str, Path], log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Dict[str, Any]]]</code></h4>
+      <p class="description">Lit un fichier <code>.cfg</code> de Mozilla (utilisé pour l'autoconfiguration).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier (ex: dans le répertoire d'installation).</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier .cfg.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Dict[str, Any]]]</span> - Dictionnaire des préférences {nom: {value: ..., type: 'lockPref'|'defaultPref'|'pref'}} ou None si erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="write_cfg_file"><code>write_cfg_file(path: Union[str, Path], prefs: Dict[str, Dict[str, Any]], backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Écrit un dictionnaire de préférences dans un fichier <code>.cfg</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier.</p>
+       <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier .cfg.</dd>
+        <dt>prefs</dt>
+        <dd><span class="param-type">(Dict[str, Dict[str, Any]])</span>: Dictionnaire des préférences {nom: {value: ..., type: ...}}.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_lockpref_to_cfg"><code>add_lockpref_to_cfg(path: Union[str, Path], pref_name: str, value: Any, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute ou met à jour une préférence verrouillée (<code>lockPref</code>) dans un fichier <code>.cfg</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier .cfg.</dd>
+        <dt>pref_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la préférence.</dd>
+        <dt>value</dt>
+        <dd><span class="param-type">(Any)</span>: Valeur de la préférence.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_defaultpref_to_cfg"><code>add_defaultpref_to_cfg(path: Union[str, Path], pref_name: str, value: Any, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute ou met à jour une préférence par défaut (<code>defaultPref</code>) dans un fichier <code>.cfg</code>, sauf si elle est déjà verrouillée.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+       <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier .cfg.</dd>
+        <dt>pref_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la préférence.</dd>
+        <dt>value</dt>
+        <dd><span class="param-type">(Any)</span>: Valeur de la préférence.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="configure_autoconfig"><code>configure_autoconfig(install_dir: Optional[Union[str, Path]] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Configure l'autoconfiguration pour Firefox ou Thunderbird (méthode non implémentée actuellement).</p>
+      <p class="sudo-warning">Nécessiterait sudo pour écrire dans le répertoire d'installation.</p>
+       <dl class="param-list">
+        <dt>install_dir</dt>
+        <dd><span class="param-type">(Optional[Union[str, Path]])</span>: Répertoire d'installation.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - Actuellement False (non implémenté).
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion Spécifique Thunderbird</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_thunderbird_account_settings"><code>get_thunderbird_account_settings(profile_path: Optional[Union[str, Path]] = None, log_levels: Optional[Dict[str, str]] = None) -> Dict[str, Dict[str, Any]]</code></h4>
+      <p class="description">Récupère les paramètres de compte Thunderbird (comptes, identités, serveurs) à partir du fichier <code>prefs.js</code> du profil.</p>
+      <p class="sudo-warning">Peut nécessiter sudo si le profil n'appartient pas à l'utilisateur courant.</p>
+       <dl class="param-list">
+        <dt>profile_path</dt>
+        <dd><span class="param-type">(Optional[Union[str, Path]])</span>: Chemin du profil Thunderbird ou None pour auto-détection.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Dict[str, Dict[str, Any]]</span> - Structure des paramètres de compte ou {} si erreur/non trouvé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_thunderbird_account_setting"><code>set_thunderbird_account_setting(account_id: str, setting_type: str, setting_id: str, key: str, value: Any, profile_path: Optional[Union[str, Path]] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit un paramètre spécifique pour une identité ou un serveur d'un compte Thunderbird dans <code>prefs.js</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier prefs.js.</p>
+       <dl class="param-list">
+        <dt>account_id</dt>
+        <dd><span class="param-type">(str)</span>: ID du compte (ex: "account1").</dd>
+        <dt>setting_type</dt>
+        <dd><span class="param-type">(str)</span>: Type de paramètre ("identity" ou "server").</dd>
+        <dt>setting_id</dt>
+        <dd><span class="param-type">(str)</span>: ID de l'identité ou du serveur (ex: "id1", "server1").</dd>
+        <dt>key</dt>
+        <dd><span class="param-type">(str)</span>: Clé du paramètre (ex: "useremail", "hostname").</dd>
+        <dt>value</dt>
+        <dd><span class="param-type">(Any)</span>: Nouvelle valeur.</dd>
+        <dt>profile_path</dt>
+        <dd><span class="param-type">(Optional[Union[str, Path]])</span>: Chemin du profil ou None pour auto-détection.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="configure_thunderbird_proxy"><code>configure_thunderbird_proxy(proxy_type: str, proxy_host: str, proxy_port: int, profile_path: Optional[Union[str, Path]] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Configure les paramètres de proxy pour Thunderbird dans <code>prefs.js</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier prefs.js.</p>
+       <dl class="param-list">
+        <dt>proxy_type</dt>
+        <dd><span class="param-type">(str)</span>: Type de proxy ("none", "manual", "auto").</dd>
+        <dt>proxy_host</dt>
+        <dd><span class="param-type">(str)</span>: Hôte du proxy (pour "manual").</dd>
+        <dt>proxy_port</dt>
+        <dd><span class="param-type">(int)</span>: Port du proxy (pour "manual").</dd>
+        <dt>profile_path</dt>
+        <dd><span class="param-type">(Optional[Union[str, Path]])</span>: Chemin du profil ou None pour auto-détection.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="configure_thunderbird_filters"><code>configure_thunderbird_filters(filters: List[Dict[str, Any]], profile_path: Optional[Union[str, Path]] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Configure les filtres de messagerie pour Thunderbird (méthode non complètement implémentée, sauvegarde les filtres dans <code>custom_filters.json</code>).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire dans le profil.</p>
+       <dl class="param-list">
+        <dt>filters</dt>
+        <dd><span class="param-type">(List[Dict[str, Any]])</span>: Liste des filtres à configurer.</dd>
+        <dt>profile_path</dt>
+        <dd><span class="param-type">(Optional[Union[str, Path]])</span>: Chemin du profil ou None pour auto-détection.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès (actuellement, sauvegarde seulement en JSON).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="update_lightning_calendar"><code>update_lightning_calendar(ics_url: str, name: str, color: str = "#3366CC", profile_path: Optional[Union[str, Path]] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute ou met à jour un calendrier Lightning (via URL ICS) dans Thunderbird en modifiant <code>prefs.js</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier prefs.js.</p>
+       <dl class="param-list">
+        <dt>ics_url</dt>
+        <dd><span class="param-type">(str)</span>: URL du calendrier ICS.</dd>
+        <dt>name</dt>
+        <dd><span class="param-type">(str)</span>: Nom à donner au calendrier.</dd>
+        <dt>color</dt>
+        <dd><span class="param-type">(str)</span>: Couleur au format hexadécimal. Défaut: "#3366CC".</dd>
+        <dt>profile_path</dt>
+        <dd><span class="param-type">(Optional[Union[str, Path]])</span>: Chemin du profil ou None pour auto-détection.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

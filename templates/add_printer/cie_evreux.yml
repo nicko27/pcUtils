@@ -1,0 +1,8 @@
+name: Evreux CIE
+description:
+variables:
+  printer_ip: 128.81.3.167
+  printer_model: KM301iCA.yml
+  printer_name: CIE
+  printer_a3: false
+  printer_all: true

@@ -1,0 +1,57 @@
+name: Imprimantes - Ajout
+description: Ajouter une imprimante en utilisant les modèles prédéfinis
+version: 1.0
+category: Système
+multiple: true
+needs_sudo: true
+ssh_debug: true
+icon: 🖨
+# Ajout du support pour l'exécution distante
+remote_execution: true
+ssh_pattern_exceptions:
+  - "models/*"
+  - "settings.yml"
+  - "get_printer_models.py"
+# Configuration pour l'intégration du fichier du modèle d'imprimante
+files_content:
+  printer_model_content: "models/{printer_model}.yml"
+
+config_fields:
+  printer_name:
+    type: text
+    label: Nom de l'imprimante (sans espaces)
+    required: true
+    validate: no_spaces
+    default: "BT"
+
+  printer_model:
+    type: select
+    label: Sélectionner le modèle d'imprimante
+    required: true
+#    allow_blank: false
+    dynamic_options:
+      script: get_printer_models.py
+      function: get_printer_models
+      dict: models
+
+
+  printer_ip:
+    type: ip
+    label: Adresse IP
+    description: Adresse IP de l'imprimante
+    required: true
+    not_empty: true
+    dynamic_default:
+      script: get_ip.py
+      function: get_local_ip
+      value_key: ip
+      path: "@[scripts]"
+
+  printer_all:
+    type: checkbox
+    label: Si coché une imprimante pour toutes les possibilités (recto, couleurs, agraffes)
+    default: true
+
+  printer_a3:
+    type: checkbox
+    label: Ajoute l(es) imprimante(s) A3

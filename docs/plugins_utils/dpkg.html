@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/dpkg.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/dpkg.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour la gestion avancée des paquets Debian via dpkg.
+      Permet de gérer les sélections de paquets, les préréponses debconf et les opérations avancées sur dpkg.
+    </p>
+    <p class="dependency-warning">
+      Nécessite les commandes <code>dpkg</code>, <code>debconf</code>, <code>debconf-communicate</code>, <code>debconf-show</code> (ou alternatives via lecture de fichiers).
+      Dépendance optionnelle sur <code>plugins_utils.apt</code> pour installer <code>debconf-utils</code> automatiquement (non utilisé dans les méthodes actuelles).
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#DpkgCommands" class="toc-link">DpkgCommands</a></li>
+        <li class="toc-item"><a href="#add_package_selection" class="toc-link">add_package_selection</a></li>
+        <li class="toc-item"><a href="#add_package_selections" class="toc-link">add_package_selections</a></li>
+        <li class="toc-item"><a href="#load_package_selections_from_file" class="toc-link">load_package_selections_from_file</a></li>
+        <li class="toc-item"><a href="#clear_package_selections" class="toc-link">clear_package_selections</a></li>
+        <li class="toc-item"><a href="#apply_package_selections" class="toc-link">apply_package_selections</a></li>
+        <li class="toc-item"><a href="#add_debconf_selection" class="toc-link">add_debconf_selection</a></li>
+        <li class="toc-item"><a href="#add_debconf_selections" class="toc-link">add_debconf_selections</a></li>
+        <li class="toc-item"><a href="#load_debconf_selections_from_file" class="toc-link">load_debconf_selections_from_file</a></li>
+        <li class="toc-item"><a href="#clear_debconf_selections" class="toc-link">clear_debconf_selections</a></li>
+        <li class="toc-item"><a href="#apply_debconf_selections" class="toc-link">apply_debconf_selections</a></li>
+        <li class="toc-item"><a href="#get_debconf_selections_for_package" class="toc-link">get_debconf_selections_for_package</a></li>
+        <li class="toc-item"><a href="#get_debconf_value" class="toc-link">get_debconf_value</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="DpkgCommands"><code>DpkgCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe avancée pour gérer dpkg, debconf et les sélections de paquets.
+        Hérite de PluginUtilsBase pour l'exécution de commandes et la progression.
+      </p>
+    </section>
+
+    <h2 class="section-title">Méthodes de Sélection de Paquets</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_package_selection"><code>add_package_selection(package: str, status: str = "install", log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Ajoute ou met à jour une sélection de paquet individuelle dans la liste cumulative interne.</p>
+      <dl class="param-list">
+        <dt>package</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paquet.</dd>
+        <dt>status</dt>
+        <dd><span class="param-type">(str)</span>: Statut souhaité ('install', 'hold', 'deinstall', 'purge'). Défaut: 'install'.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_package_selections"><code>add_package_selections(selections: str, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Ajoute des sélections de paquets depuis une chaîne multiligne à la liste cumulative interne.</p>
+      <dl class="param-list">
+        <dt>selections</dt>
+        <dd><span class="param-type">(str)</span>: Chaîne contenant les sélections (une par ligne: "package status").</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="load_package_selections_from_file"><code>load_package_selections_from_file(filepath: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Charge les sélections depuis un fichier et les ajoute à la liste cumulative interne.</p>
+      <p class="sudo-warning">Nécessite des privilèges root pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>filepath</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du fichier de sélections.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le chargement a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="clear_package_selections"><code>clear_package_selections(log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Efface toutes les sélections de paquets dpkg en attente (en mémoire).</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="apply_package_selections"><code>apply_package_selections(task_id: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Applique toutes les sélections de paquets en attente via <code>dpkg --set-selections</code>. La liste interne est vidée après succès.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>task_id</dt>
+        <dd><span class="param-type">(Optional[str])</span>: ID de tâche pour la progression (optionnel).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'opération a réussi.
+      </div>
+    </section>
+
+    <h2 class="section-title">Méthodes Debconf</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_debconf_selection"><code>add_debconf_selection(package: str, question: str, q_type: str, value: str, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Ajoute ou met à jour une pré-réponse debconf individuelle dans la liste cumulative interne.</p>
+      <dl class="param-list">
+        <dt>package</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paquet.</dd>
+        <dt>question</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la question debconf.</dd>
+        <dt>q_type</dt>
+        <dd><span class="param-type">(str)</span>: Type de la question (string, boolean, select, etc.).</dd>
+        <dt>value</dt>
+        <dd><span class="param-type">(str)</span>: Valeur de la réponse.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_debconf_selections"><code>add_debconf_selections(selections: str, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Ajoute des pré-réponses debconf depuis une chaîne multiligne à la liste cumulative interne.</p>
+      <dl class="param-list">
+        <dt>selections</dt>
+        <dd><span class="param-type">(str)</span>: Chaîne contenant les pré-réponses (une par ligne: "package question type value").</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="load_debconf_selections_from_file"><code>load_debconf_selections_from_file(filepath: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Charge les pré-réponses debconf depuis un fichier et les ajoute à la liste interne.</p>
+      <p class="sudo-warning">Nécessite des privilèges root pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>filepath</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du fichier debconf.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le chargement a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="clear_debconf_selections"><code>clear_debconf_selections(log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Efface toutes les pré-réponses debconf en attente (en mémoire).</p>
+       <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="apply_debconf_selections"><code>apply_debconf_selections(task_id: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Applique toutes les pré-réponses debconf en attente via <code>debconf-set-selections</code> ou des méthodes alternatives. La liste interne est vidée après succès.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>task_id</dt>
+        <dd><span class="param-type">(Optional[str])</span>: ID de tâche pour la progression (optionnel).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'opération a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_debconf_selections_for_package"><code>get_debconf_selections_for_package(package_name: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[Tuple[str, str], str]]</code></h4>
+      <p class="description">Récupère les sélections debconf actuelles pour un paquet via <code>debconf-show</code> ou lecture directe des fichiers.</p>
+      <p class="sudo-warning">Peut nécessiter des privilèges root pour lire les fichiers de configuration.</p>
+      <dl class="param-list">
+        <dt>package_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paquet.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[Tuple[str, str], str]]</span> - Dictionnaire {(question, type): valeur} ou None si erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_debconf_value"><code>get_debconf_value(package_name: str, question_name: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[str]</code></h4>
+      <p class="description">Récupère la valeur d'une question debconf spécifique pour un paquet.</p>
+      <p class="sudo-warning">Peut nécessiter des privilèges root.</p>
+      <dl class="param-list">
+        <dt>package_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paquet.</dd>
+        <dt>question_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la question debconf.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[str]</span> - Valeur de la sélection ou None si non trouvée ou erreur.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

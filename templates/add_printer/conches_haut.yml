@@ -1,0 +1,8 @@
+name: Conches Haut
+description:
+variables:
+  printer_ip: 150.27.2.220
+  printer_model: KM250iC.yml
+  printer_name: Haut
+  printer_a3: false
+  printer_all: true

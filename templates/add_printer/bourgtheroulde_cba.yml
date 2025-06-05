@@ -1,0 +1,8 @@
+name: Bourgtheroulde CBA
+description:
+variables:
+  printer_ip: 150.27.33.221
+  printer_model: KM301i.yml
+  printer_name: CBA
+  printer_a3: false
+  printer_all: true

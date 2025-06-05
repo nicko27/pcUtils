@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/system_info_extended.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/system_info_extended.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour récupérer des informations système et matérielles étendues.
+      Utilise des commandes comme <code>lspci</code>, <code>lsusb</code>, <code>dmidecode</code>, <code>lsblk</code>, <code>smartctl</code> et lit <code>/proc/cpuinfo</code>.
+    </p>
+    <p class="dependency-warning">
+      Nécessite que les commandes suivantes soient installées et accessibles : <code>lspci</code>, <code>lsusb</code>, <code>dmidecode</code>, <code>lsblk</code>, <code>smartctl</code>, <code>cat</code>.
+    </p>
+    <p class="sudo-warning">Les commandes <code>dmidecode</code> et <code>smartctl</code> nécessitent généralement des privilèges root. <code>lsusb -v</code> peut également en avoir besoin.</p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#SystemInfoExtended" class="toc-link">SystemInfoExtended</a></li>
+        <li class="toc-item"><a href="#get_pci_devices" class="toc-link">get_pci_devices</a></li>
+        <li class="toc-item"><a href="#get_usb_devices" class="toc-link">get_usb_devices</a></li>
+        <li class="toc-item"><a href="#get_dmi_info" class="toc-link">get_dmi_info</a></li>
+        <li class="toc-item"><a href="#get_disk_details" class="toc-link">get_disk_details</a></li>
+        <li class="toc-item"><a href="#get_disk_smart_info" class="toc-link">get_disk_smart_info</a></li>
+        <li class="toc-item"><a href="#get_cpu_flags" class="toc-link">get_cpu_flags</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="SystemInfoExtended"><code>SystemInfoExtended(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour récupérer des informations système et matérielles détaillées.
+        Hérite de PluginUtilsBase pour l'exécution de commandes.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Méthodes Principales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_pci_devices"><code>get_pci_devices(log_levels: Optional[Dict[str, str]] = None) -> List[Dict[str, str]]</code></h4>
+      <p class="description">Liste les périphériques PCI détectés par le système via <code>lspci -mm -vnn</code>.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[Dict[str, str]]</span> - Liste de dictionnaires, chaque dict représentant un périphérique PCI avec des clés normalisées (ex: 'slot', 'class_name', 'class_id', 'vendor_name', 'vendor_id', 'device_name', 'device_id', 'svendor_name', 'svendor_id', 'sdevice_name', 'sdevice_id', 'rev', 'progif'). Retourne une liste vide si erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_usb_devices"><code>get_usb_devices(verbose: bool = False, log_levels: Optional[Dict[str, str]] = None) -> List[Dict[str, str]]</code></h4>
+      <p class="description">Liste les périphériques USB détectés via <code>lsusb</code> ou <code>lsusb -v</code>.</p>
+      <p class="sudo-warning">L'option <code>verbose=True</code> (<code>lsusb -v</code>) peut nécessiter des privilèges root.</p>
+      <dl class="param-list">
+        <dt>verbose</dt>
+        <dd><span class="param-type">(bool)</span>: Utiliser <code>lsusb -v</code> pour des détails (parsing complexe et potentiellement incomplet). Si False, utilise <code>lsusb</code> simple. Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[Dict[str, str]]</span> - Liste de dictionnaires représentant les périphériques USB. Les clés varient selon l'option <code>verbose</code>. Retourne une liste vide si erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_dmi_info"><code>get_dmi_info(log_levels: Optional[Dict[str, str]] = None) -> Dict[str, Any]</code></h4>
+      <p class="description">Récupère les informations DMI/SMBIOS via <code>dmidecode</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Dict[str, Any]</span> - Dictionnaire structuré avec les informations DMI (clés basées sur le type de section et le handle, ex: 'BIOS_0x0000', 'System_0x0100'). Retourne un dict vide si erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_disk_details"><code>get_disk_details(device: str, log_levels: Optional[Dict[str, str]] = None) -> Dict[str, str]</code></h4>
+      <p class="description">Récupère des détails sur un disque (modèle, série, vendor, taille, type, transport) via <code>lsblk -d -n -o ...</code>.</p>
+      <dl class="param-list">
+        <dt>device</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du périphérique disque (ex: /dev/sda, /dev/nvme0n1).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Dict[str, str]</span> - Dictionnaire avec les détails trouvés (clés: 'device', 'name_lsblk', 'model', 'serial', 'vendor', 'size', 'type', 'transport'). Retourne {'device': nom} si erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_disk_smart_info"><code>get_disk_smart_info(device: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]</code></h4>
+      <p class="description">Récupère les informations SMART complètes d'un disque via <code>smartctl -a -j</code> (sortie JSON).</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>device</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du périphérique disque (ex: /dev/sda).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Any]]</span> - Dictionnaire contenant les données SMART parsées depuis le JSON, ou None si échec, non supporté, ou erreur de parsing.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_cpu_flags"><code>get_cpu_flags(log_levels: Optional[Dict[str, str]] = None) -> List[str]</code></h4>
+      <p class="description">Récupère la liste des flags (fonctionnalités) du premier CPU listé dans <code>/proc/cpuinfo</code>.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[str]</span> - Liste des flags CPU (ex: 'vmx', 'sse4_2', 'avx'). Retourne une liste vide si erreur.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

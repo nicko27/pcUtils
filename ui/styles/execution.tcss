@@ -1,0 +1,97 @@
+#plugins-list{
+    margin-top:1;
+    margin-left:2;
+    margin-right:2;
+    padding-right:1;
+}
+
+.plugin-container {
+    margin-bottom: 1;
+    border-top:solid red;
+    padding:0;
+    height:3;
+}
+
+.plugin-name {
+    width: 30%;
+    content-align: left middle;
+}
+
+.plugin-progress {
+    width: 50%;
+}
+
+.plugin-progress Bar{
+    width:95%;
+}
+
+.plugin-status {
+    width: 20%;
+    content-align: center middle;
+}
+
+.plugin-container.waiting {
+    border: tall $primary;
+    opacity: 70%;
+}
+
+.plugin-container.running {
+    border: solid $warning;
+    opacity: 100%;
+    background: $warning 10%;
+}
+
+.plugin-container.success {
+    border: solid $success;
+    opacity: 70%;
+}
+
+.plugin-container.error {
+    border: solid $error;
+    opacity: 70%;
+}
+
+#logs{
+    width:100%;
+}
+
+#logs-container {
+    height: 20;
+    margin-left:3;
+    padding:0;
+    margin-right:3;
+    margin-bottom: 7;  /* Espace pour la zone des boutons */
+}
+
+#button-container{
+    layout: horizontal;
+}
+
+#button-container-back-exec{
+    margin-left:2;
+    width:1fr;
+    min-width: 16;
+}
+
+#button-container-continue-exec{
+    width:2fr;
+    min-width:32;
+}
+
+
+#button-container-progress-exec{
+    align: left middle;
+    margin-left:2;
+    width: 7fr;
+} 
+
+#global-progress Bar {
+    height:3;
+    width:1fr;
+}
+
+#button-container-start-exec{
+    width:1fr;
+    padding-left:2;
+    min-width: 18;
+}

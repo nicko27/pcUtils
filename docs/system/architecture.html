@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture Générale - pcUtils</title>
+    <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">&larr; Retour à l'accueil</a>
+            <h1>Architecture Générale</h1>
+            <p class="subtitle">Vue d'ensemble de la structure de l'application et de ses modules.</p>
+        </header>
+
+        <section class="content-section">
+            <h2>Philosophie</h2>
+            <p>L'application pcUtils est conçue autour d'une architecture modulaire basée sur des écrans (<code>Screen</code>) et des composants réutilisables (<code>Widget</code>) grâce à la bibliothèque Textual. L'objectif est de séparer clairement les responsabilités :</p>
+            <ul>
+                <li>Gestion de l'application et des arguments.</li>
+                <li>Interface de sélection des tâches (plugins/séquences).</li>
+                <li>Interface de configuration des paramètres.</li>
+                <li>Interface de suivi de l'exécution.</li>
+                <li>Logique métier encapsulée dans les plugins.</li>
+                <li>Utilitaires partagés pour les tâches courantes.</li>
+            </ul>
+        </section>
+
+        <section class="content-section">
+            <h2>Modules Principaux</h2>
+            <p>Voici les principaux répertoires et modules constituant l'application :</p>
+
+            <div class="module-block">
+                <h3><code>ui/app_manager/</code></h3>
+                <p><strong>Rôle :</strong> Orchestration du démarrage et du flux de l'application.</p>
+                <ul>
+                    <li><code>app_manager.py</code> (<span class="class-name">AppManager</span>): Classe principale qui analyse les arguments et lance le mode approprié (normal, auto, plugin unique).</li>
+                    <li><code>argument_parser.py</code> (<span class="class-name">ArgumentParser</span>): Définit et parse les arguments de la ligne de commande (<code>--auto</code>, <code>--sequence</code>, <code>--plugin</code>, etc.).</li>
+                    <li><code>config_loader.py</code> (<span class="class-name">ConfigLoader</span>): Charge les configurations depuis des fichiers YAML ou parse les paramètres (<code>--params</code>).</li>
+                    <li><code>sequence_manager.py</code> (<span class="class-name">SequenceManager</span>): Recherche et charge les fichiers de séquence (par chemin ou raccourci).</li>
+                </ul>
+            </div>
+
+            <div class="module-block">
+                <h3><code>ui/choice_screen/</code></h3>
+                <p><strong>Rôle :</strong> Écran de sélection des plugins et séquences.</p>
+                <ul>
+                    <li><code>choice_screen.py</code> (<span class="class-name">Choice</span>): L'écran Textual principal affiché au démarrage normal.</li>
+                    <li><code>plugin_card.py</code> (<span class="class-name">PluginCard</span>): Widget représentant un plugin ou une séquence sélectionnable.</li>
+                    <li><code>selected_plugins_panel.py</code> (<span class="class-name">SelectedPluginsPanel</span>): Panneau affichant la liste des plugins/séquences choisis.</li>
+                    <li><code>plugin_list_item.py</code> (<span class="class-name">PluginListItem</span>): Widget représentant un élément dans le panneau de sélection.</li>
+                    <li><code>sequence_handler.py</code> (<span class="class-name">SequenceHandler</span>): Logique de gestion des séquences (chargement, validation, cache) pour cet écran.</li>
+                    <li><code>template_handler.py</code> (<span class="class-name">TemplateHandler</span>): Logique de gestion des templates (chargement, validation) pour cet écran.</li>
+                    <li><code>plugin_utils.py</code>: Fonctions utilitaires pour trouver les dossiers et charger les informations (<code>settings.yml</code>) des plugins.</li>
+                </ul>
+            </div>
+
+            <div class="module-block">
+                <h3><code>ui/config_screen/</code></h3>
+                <p><strong>Rôle :</strong> Écran de configuration des paramètres.</p>
+                <ul>
+                    <li><code>config_screen.py</code> (<span class="class-name">PluginConfig</span>): L'écran Textual affichant les formulaires de configuration.</li>
+                    <li><code>config_container.py</code> (<span class="class-name">ConfigContainer</span>): Conteneur de base pour un groupe de champs (global ou plugin), gère les dépendances.</li>
+                    <li><code>plugin_config_container.py</code> (<span class="class-name">PluginConfigContainer</span>): Spécialisation pour les plugins, ajoute la gestion des templates.</li>
+                    <li><code>config_field.py</code> (<span class="class-name">ConfigField</span>): Classe de base abstraite pour tous les types de champs.</li>
+                    <li><code>text_field.py</code>, <code>ip_field.py</code>, <code>password_field.py</code>, <code>directory_field.py</code>, <code>checkbox_field.py</code>, <code>select_field.py</code>, <code>checkbox_group_field.py</code>: Implémentations spécifiques des différents types de champs de formulaire.</li>
+                    <li><code>template_field.py</code> (<span class="class-name">TemplateField</span>): Widget permettant de sélectionner un template de configuration.</li>
+                    <li><code>config_manager.py</code> (<span class="class-name">ConfigManager</span>): Charge et valide les définitions de configuration (<code>settings.yml</code>, <code>ssh_fields.yml</code>).</li>
+                    <li><code>template_manager.py</code> (<span class="class-name">TemplateManager</span>): Charge et gère les templates de configuration depuis le dossier <code>templates/</code>.</li>
+                    <li><code>sequence_config_manager.py</code> (<span class="class-name">SequenceConfigManager</span>): Gère la fusion des configurations provenant des séquences avec les configurations par défaut ou existantes.</li>
+                    <li><code>auto_config.py</code> (<span class="class-name">AutoConfig</span>): Permet de traiter une séquence et de générer la configuration finale sans passer par l'UI.</li>
+                </ul>
+            </div>
+
+            <div class="module-block">
+                <h3><code>ui/execution_screen/</code></h3>
+                <p><strong>Rôle :</strong> Écran d'exécution et de suivi.</p>
+                <ul>
+                    <li><code>execution_screen.py</code> (<span class="class-name">ExecutionScreen</span>): L'écran Textual affichant la progression de l'exécution.</li>
+                    <li><code>execution_widget.py</code> (<span class="class-name">ExecutionWidget</span>): Le widget principal qui orchestre l'exécution des plugins listés.</li>
+                    <li><code>plugin_container.py</code> (<span class="class-name">PluginContainer</span>): Widget affichant le statut et la progression d'un plugin individuel.</li>
+                    <li><code>local_executor.py</code> (<span class="class-name">LocalExecutor</span>): Gère l'exécution des plugins sur la machine locale.</li>
+                    <li><code>ssh_executor.py</code> (<span class="class-name">SSHExecutor</span>): Gère l'exécution des plugins sur des machines distantes via SSH.</li>
+                    <li><code>ssh_wrapper.py</code>: Script Python exécuté sur la machine distante pour lancer le plugin (avec sudo si nécessaire).</li>
+                    <li><code>logger_utils.py</code> (<span class="class-name">LoggerUtils</span>): Classe utilitaire pour formater et afficher les logs (texte brut ou JSON) et la progression dans l'UI de manière asynchrone et optimisée.</li>
+                    <li><code>file_content_handler.py</code> (<span class="class-name">FileContentHandler</span>): Charge dynamiquement le contenu de fichiers (souvent YAML) référencés dans la configuration d'un plugin (via la clé <code>files_content</code> dans <code>settings.yml</code>).</li>
+                    <li><code>root_credentials_manager.py</code> (<span class="class-name">RootCredentialsManager</span>): Gère de manière centralisée les identifiants root (pour sudo local ou SSH).</li>
+                </ul>
+            </div>
+
+            <div class="module-block">
+                <h3><code>ui/ssh_manager/</code></h3>
+                <p><strong>Rôle :</strong> Configuration et utilitaires SSH.</p>
+                <ul>
+                    <li><code>ssh_config_loader.py</code> (<span class="class-name">SSHConfigLoader</span>): Charge la configuration SSH globale depuis <code>ssh_config.yml</code> et la définition des champs depuis <code>ssh_fields.yml</code>.</li>
+                    <li><code>ip_utils.py</code>: Fonctions pour traiter les adresses IP, notamment l'expansion des motifs (<code>192.168.1.*</code>) et la gestion des exclusions.</li>
+                    <li><code>ssh_fields.yml</code>: Définit les champs affichés dans l'UI pour la configuration SSH globale.</li>
+                    <li><code>ssh_config.yml</code>: Stocke les paramètres de connexion SSH (timeouts, clés, etc.).</li>
+                </ul>
+            </div>
+
+             <div class="module-block">
+                <h3><code>ui/utils/</code></h3>
+                <p><strong>Rôle :</strong> Utilitaires généraux.</p>
+                <ul>
+                    <li><code>logging.py</code>: Configuration initiale du système de journalisation Python.</li>
+                    <li><code>messaging.py</code>: Définit un format de message standard (<span class="class-name">Message</span>, <span class="class-name">MessageType</span>) et des formateurs (<span class="class-name">MessageFormatter</span>) pour la communication entre composants (utilisé notamment par <code>LoggerUtils</code>).</li>
+                </ul>
+            </div>
+
+             <div class="module-block">
+                <h3><code>plugins/</code></h3>
+                <p><strong>Rôle :</strong> Contient les sous-dossiers de chaque plugin individuel.</p>
+            </div>
+             <div class="module-block">
+                <h3><code>plugins_utils/</code> (Optionnel)</h3>
+                <p><strong>Rôle :</strong> Bibliothèque partagée d'utilitaires Python pouvant être utilisés par les plugins (gestion apt, fichiers, services, etc.). Voir <a href="index_plugins_utils.html">Documentation plugins_utils</a>.</p>
+            </div>
+             <div class="module-block">
+                <h3><code>sequences/</code></h3>
+                <p><strong>Rôle :</strong> Contient les fichiers YAML définissant les séquences de plugins.</p>
+            </div>
+             <div class="module-block">
+                <h3><code>templates/</code></h3>
+                <p><strong>Rôle :</strong> Contient les sous-dossiers (nommés comme les plugins) contenant les templates de configuration YAML.</p>
+            </div>
+             <div class="module-block">
+                <h3><code>scripts/</code> (Optionnel)</h3>
+                <p><strong>Rôle :</strong> Contient des scripts Python globaux pouvant être appelés par les champs de configuration pour générer des options dynamiques (<code>dynamic_options</code> avec <code>global: true</code>).</p>
+            </div>
+
+        </section>
+
+        <footer>
+            <p>Documentation pcUtils</p>
+        </footer>
+    </div>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/webserver.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/webserver.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour la gestion des serveurs web Apache2 et Nginx.
+      Utilise les commandes système spécifiques (<code>apachectl</code>/<code>httpd</code>, <code>a2ensite</code>/<code>a2dissite</code>/<code>a2enmod</code>/<code>a2dismod</code>, <code>nginx</code>).
+    </p>
+    <p class="dependency-warning">
+      Nécessite que les commandes serveur web correspondantes (<code>apache2ctl</code>/<code>httpd</code>, <code>nginx</code>) et les outils associés (<code>a2en*</code>/<code>a2dis*</code> sur Debian/Ubuntu) soient installés.
+      Dépendance optionnelle sur <code>plugins_utils.services</code> pour la détection et la gestion des services.
+      Utilise également <code>which</code>, <code>rm</code>, <code>ln</code>.
+    </p>
+    <p class="sudo-warning">La plupart des opérations (vérification de config, activation/désactivation de sites/modules, rechargement/redémarrage) nécessitent des privilèges root.</p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#WebServerCommands" class="toc-link">WebServerCommands</a></li>
+        <li class="toc-item"><a href="#detect_webserver" class="toc-link">detect_webserver</a></li>
+        <li class="toc-item"><a href="#apache_check_config" class="toc-link">apache_check_config</a></li>
+        <li class="toc-item"><a href="#apache_enable_site" class="toc-link">apache_enable_site</a></li>
+        <li class="toc-item"><a href="#apache_disable_site" class="toc-link">apache_disable_site</a></li>
+        <li class="toc-item"><a href="#apache_enable_module" class="toc-link">apache_enable_module</a></li>
+        <li class="toc-item"><a href="#apache_disable_module" class="toc-link">apache_disable_module</a></li>
+        <li class="toc-item"><a href="#apache_reload" class="toc-link">apache_reload</a></li>
+        <li class="toc-item"><a href="#apache_restart" class="toc-link">apache_restart</a></li>
+        <li class="toc-item"><a href="#nginx_check_config" class="toc-link">nginx_check_config</a></li>
+        <li class="toc-item"><a href="#nginx_enable_site" class="toc-link">nginx_enable_site</a></li>
+        <li class="toc-item"><a href="#nginx_disable_site" class="toc-link">nginx_disable_site</a></li>
+        <li class="toc-item"><a href="#nginx_reload" class="toc-link">nginx_reload</a></li>
+        <li class="toc-item"><a href="#nginx_restart" class="toc-link">nginx_restart</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="WebServerCommands"><code>WebServerCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour gérer les serveurs web Apache2 et Nginx.
+        Hérite de PluginUtilsBase pour l'exécution de commandes.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Méthodes Générales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="detect_webserver"><code>detect_webserver(log_levels: Optional[Dict[str, str]] = None) -> str</code></h4>
+      <p class="description">Tente de détecter quel serveur web est principal (Apache ou Nginx) en vérifiant la présence des commandes et l'état des services (si <code>ServiceCommands</code> est disponible).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour vérifier l'état des services.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">str</span> - Une des constantes de classe : <code>SERVER_APACHE</code>, <code>SERVER_NGINX</code>, ou <code>SERVER_UNKNOWN</code>.
+      </div>
+    </section>
+
+    <h2 class="section-title">Opérations Apache</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="apache_check_config"><code>apache_check_config(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie la syntaxe de la configuration Apache via <code>apache2ctl configtest</code> (ou équivalent).</p>
+      <p class="sudo-warning">Nécessite sudo pour lire tous les fichiers de configuration inclus.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la syntaxe est correcte ("Syntax OK").
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="apache_enable_site"><code>apache_enable_site(site_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Active un site Apache via <code>a2ensite -q</code> (sur systèmes Debian/Ubuntu).</p>
+      <p class="sudo-warning">Nécessite sudo.</p>
+      <p class="dependency-warning">Nécessite la commande <code>a2ensite</code>.</p>
+      <dl class="param-list">
+        <dt>site_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du fichier de configuration du site (ex: '000-default', 'my-site.conf').</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si déjà activé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="apache_disable_site"><code>apache_disable_site(site_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Désactive un site Apache via <code>a2dissite -q</code> (sur systèmes Debian/Ubuntu).</p>
+      <p class="sudo-warning">Nécessite sudo.</p>
+      <p class="dependency-warning">Nécessite la commande <code>a2dissite</code>.</p>
+      <dl class="param-list">
+        <dt>site_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du fichier de configuration du site.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si déjà désactivé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="apache_enable_module"><code>apache_enable_module(module_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Active un module Apache via <code>a2enmod -q</code> (sur systèmes Debian/Ubuntu).</p>
+      <p class="sudo-warning">Nécessite sudo.</p>
+      <p class="dependency-warning">Nécessite la commande <code>a2enmod</code>.</p>
+      <dl class="param-list">
+        <dt>module_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du module (ex: 'rewrite', 'ssl').</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si déjà activé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="apache_disable_module"><code>apache_disable_module(module_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Désactive un module Apache via <code>a2dismod -q</code> (sur systèmes Debian/Ubuntu).</p>
+      <p class="sudo-warning">Nécessite sudo.</p>
+      <p class="dependency-warning">Nécessite la commande <code>a2dismod</code>.</p>
+      <dl class="param-list">
+        <dt>module_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du module.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si déjà désactivé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="apache_reload"><code>apache_reload(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Recharge la configuration Apache via <code>ServiceCommands.reload</code>.</p>
+      <p class="sudo-warning">Nécessite sudo.</p>
+      <p class="dependency-warning">Nécessite que le module <code>ServiceCommands</code> soit disponible.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="apache_restart"><code>apache_restart(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Redémarre le service Apache via <code>ServiceCommands.restart</code>.</p>
+      <p class="sudo-warning">Nécessite sudo.</p>
+      <p class="dependency-warning">Nécessite que le module <code>ServiceCommands</code> soit disponible.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <h2 class="section-title">Opérations Nginx</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="nginx_check_config"><code>nginx_check_config(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie la syntaxe de la configuration Nginx via <code>nginx -t</code>.</p>
+      <p class="sudo-warning">Nécessite sudo pour lire tous les fichiers de configuration inclus.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la syntaxe est correcte ("syntax is ok" et "test is successful").
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="nginx_enable_site"><code>nginx_enable_site(site_config_filename: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Active un site Nginx en créant un lien symbolique de <code>sites-available</code> vers <code>sites-enabled</code>.</p>
+      <p class="sudo-warning">Nécessite sudo pour créer le lien symbolique.</p>
+      <dl class="param-list">
+        <dt>site_config_filename</dt>
+        <dd><span class="param-type">(str)</span>: Nom du fichier de configuration du site dans <code>sites-available</code>.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si déjà activé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="nginx_disable_site"><code>nginx_disable_site(site_config_filename: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Désactive un site Nginx en supprimant le lien symbolique dans <code>sites-enabled</code>.</p>
+      <p class="sudo-warning">Nécessite sudo pour supprimer le lien symbolique.</p>
+      <dl class="param-list">
+        <dt>site_config_filename</dt>
+        <dd><span class="param-type">(str)</span>: Nom du fichier de configuration du site dans <code>sites-enabled</code>.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si déjà désactivé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="nginx_reload"><code>nginx_reload(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Recharge la configuration Nginx via <code>ServiceCommands.reload</code> après avoir vérifié la syntaxe.</p>
+      <p class="sudo-warning">Nécessite sudo.</p>
+      <p class="dependency-warning">Nécessite que le module <code>ServiceCommands</code> soit disponible.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la vérification de config et le rechargement réussissent.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="nginx_restart"><code>nginx_restart(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Redémarre le service Nginx via <code>ServiceCommands.restart</code> après avoir vérifié la syntaxe.</p>
+      <p class="sudo-warning">Nécessite sudo.</p>
+      <p class="dependency-warning">Nécessite que le module <code>ServiceCommands</code> soit disponible.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la vérification de config et le redémarrage réussissent.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

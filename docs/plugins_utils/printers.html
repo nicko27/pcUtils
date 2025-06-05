@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/printers.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/printers.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour la gestion des imprimantes CUPS.
+      Permet d'ajouter, supprimer, configurer et vérifier l'état des imprimantes dans un système Linux utilisant CUPS.
+    </p>
+    <p class="dependency-warning">
+      Nécessite les commandes CUPS : <code>lpstat</code>, <code>lpadmin</code>, <code>cupsenable</code>, <code>cupsdisable</code>, <code>lpoptions</code>.
+      Nécessite potentiellement <code>systemctl</code> (ou dépendance sur <code>plugins_utils.services</code>) pour redémarrer CUPS.
+    </p>
+     <p class="sudo-warning">La plupart des opérations de modification (ajout, suppression, configuration, activation/désactivation, redémarrage) nécessitent des privilèges root.</p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#PrinterCommands" class="toc-link">PrinterCommands</a></li>
+        <li class="toc-item"><a href="#list_printers" class="toc-link">list_printers</a></li>
+        <li class="toc-item"><a href="#get_printer_details" class="toc-link">get_printer_details</a></li>
+        <li class="toc-item"><a href="#remove_all_network_printers" class="toc-link">remove_all_network_printers</a></li>
+        <li class="toc-item"><a href="#remove_printer_by_ip" class="toc-link">remove_printer_by_ip</a></li>
+        <li class="toc-item"><a href="#add_printer" class="toc-link">add_printer</a></li>
+        <li class="toc-item"><a href="#remove_printer" class="toc-link">remove_printer</a></li>
+        <li class="toc-item"><a href="#get_default_printer" class="toc-link">get_default_printer</a></li>
+        <li class="toc-item"><a href="#set_default_printer" class="toc-link">set_default_printer</a></li>
+        <li class="toc-item"><a href="#enable_printer" class="toc-link">enable_printer</a></li>
+        <li class="toc-item"><a href="#disable_printer" class="toc-link">disable_printer</a></li>
+        <li class="toc-item"><a href="#get_printer_options" class="toc-link">get_printer_options</a></li>
+        <li class="toc-item"><a href="#set_printer_option" class="toc-link">set_printer_option</a></li>
+        <li class="toc-item"><a href="#restart_cups" class="toc-link">restart_cups</a></li>
+        <li class="toc-item"><a href="#get_printer_status" class="toc-link">get_printer_status</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="PrinterCommands"><code>PrinterCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour gérer les imprimantes via les commandes CUPS (<code>lpadmin</code>, <code>lpstat</code>, etc.).
+        Hérite de PluginUtilsBase pour l'exécution de commandes et la progression.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Méthodes Principales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="list_printers"><code>list_printers(log_levels: Optional[Dict[str, str]] = None) -> List[str]</code></h4>
+      <p class="description">Liste toutes les imprimantes configurées dans CUPS via <code>lpstat -p</code>.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[str]</span> - Liste des noms d'imprimantes ou liste vide si erreur ou aucune imprimante.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_printer_details"><code>get_printer_details(printer_name: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> Dict[str, Dict[str, str]]</code></h4>
+      <p class="description">Récupère les détails (URI, statut, etc.) d'une ou toutes les imprimantes via <code>lpstat -t</code>.</p>
+      <dl class="param-list">
+        <dt>printer_name</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Nom de l'imprimante spécifique (ou None pour toutes). Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Dict[str, Dict[str, str]]</span> - Dictionnaire des détails {nom_imprimante: {uri: ..., status: ...}}. Retourne un dict vide si erreur ou aucune imprimante.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="remove_all_network_printers"><code>remove_all_network_printers(exclude_patterns: Optional[List[str]] = None, task_id: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> Tuple[bool, int, List[str]]</code></h4>
+      <p class="description">Supprime toutes les imprimantes réseau du système, en excluant éventuellement celles correspondant à des motifs.</p>
+      <p class="sudo-warning">Nécessite des privilèges root pour supprimer les imprimantes.</p>
+      <dl class="param-list">
+        <dt>exclude_patterns</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste de motifs regex pour exclure certaines imprimantes par nom. Défaut: None.</dd>
+        <dt>task_id</dt>
+        <dd><span class="param-type">(Optional[str])</span>: ID de tâche pour la progression. Auto-généré si None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Tuple[bool, int, List[str]]</span> - Un tuple (succès global, nombre d'imprimantes supprimées, liste des noms supprimés).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="remove_printer_by_ip"><code>remove_printer_by_ip(ip_address: str, task_id: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> Tuple[bool, int]</code></h4>
+      <p class="description">Supprime toutes les imprimantes dont l'URI contient l'adresse IP spécifiée.</p>
+      <p class="sudo-warning">Nécessite des privilèges root pour supprimer les imprimantes.</p>
+      <dl class="param-list">
+        <dt>ip_address</dt>
+        <dd><span class="param-type">(str)</span>: Adresse IP à rechercher dans les URI des imprimantes.</dd>
+        <dt>task_id</dt>
+        <dd><span class="param-type">(Optional[str])</span>: ID de tâche pour la progression. Auto-généré si None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Tuple[bool, int]</span> - Un tuple (succès global, nombre d'imprimantes supprimées).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_printer"><code>add_printer(name: str, uri: str, ppd_file: Optional[str] = None, model: Optional[str] = None, options: Optional[Dict[str, str]] = None, make_default: bool = False, shared: bool = False, enabled: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute une imprimante au système CUPS via <code>lpadmin</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'imprimante (unique).</dd>
+        <dt>uri</dt>
+        <dd><span class="param-type">(str)</span>: URI du périphérique (ex: socket://..., ipp://...).</dd>
+        <dt>ppd_file</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin absolu vers le fichier PPD (prioritaire sur <code>model</code>).</dd>
+        <dt>model</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Nom du modèle/pilote (ex: 'drv:///...', 'raw'). Utilisé si <code>ppd_file</code> est None.</dd>
+        <dt>options</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire d'options CUPS {option: valeur}.</dd>
+        <dt>make_default</dt>
+        <dd><span class="param-type">(bool)</span>: Définir comme imprimante par défaut. Défaut: False.</dd>
+        <dt>shared</dt>
+        <dd><span class="param-type">(bool)</span>: Partager l'imprimante. Défaut: False.</dd>
+        <dt>enabled</dt>
+        <dd><span class="param-type">(bool)</span>: Activer l'imprimante après ajout. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'ajout (<code>lpadmin</code>) a réussi (les étapes suivantes comme l'activation ou la définition par défaut peuvent échouer mais la fonction retourne True si l'ajout initial est OK).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="remove_printer"><code>remove_printer(printer_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime une imprimante du système CUPS via <code>lpadmin -x</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>printer_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'imprimante à supprimer.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la suppression a réussi ou si l'imprimante n'existait pas.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_default_printer"><code>get_default_printer(log_levels: Optional[Dict[str, str]] = None) -> Optional[str]</code></h4>
+      <p class="description">Obtient le nom de l'imprimante par défaut via <code>lpstat -d</code>.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[str]</span> - Nom de l'imprimante par défaut ou None si aucune n'est définie ou en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_default_printer"><code>set_default_printer(printer_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit une imprimante comme imprimante par défaut via <code>lpadmin -d</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>printer_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'imprimante à définir par défaut.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="enable_printer"><code>enable_printer(printer_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Active une imprimante (accepte les travaux) via <code>cupsenable</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>printer_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'imprimante.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si déjà activée.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="disable_printer"><code>disable_printer(printer_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Désactive une imprimante (rejette les travaux) via <code>cupsdisable</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>printer_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'imprimante.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si déjà désactivée.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_printer_options"><code>get_printer_options(printer_name: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, str]]</code></h4>
+      <p class="description">Obtient les options configurées (et leurs valeurs par défaut) pour une imprimante via <code>lpoptions -p ... -l</code>.</p>
+      <dl class="param-list">
+        <dt>printer_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'imprimante.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, str]]</span> - Dictionnaire des options {nom_option: valeur_par_defaut} ou None si erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_printer_option"><code>set_printer_option(printer_name: str, option: str, value: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit une option pour une imprimante via <code>lpoptions -p ... -o ...</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>printer_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'imprimante.</dd>
+        <dt>option</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'option CUPS.</dd>
+        <dt>value</dt>
+        <dd><span class="param-type">(str)</span>: Valeur de l'option.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="restart_cups"><code>restart_cups(log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Redémarre le service CUPS. Utilise <code>ServiceCommands.restart("cups")</code> si disponible, sinon <code>systemctl restart cups</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_printer_status"><code>get_printer_status(printer_name: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[str]</code></h4>
+      <p class="description">Obtient l'état actuel d'une imprimante en parsant la sortie de <code>get_printer_details</code>.</p>
+      <dl class="param-list">
+        <dt>printer_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'imprimante.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[str]</span> - Chaîne décrivant l'état (ex: "idle.", "processing page 1, 56%.") ou None si l'imprimante n'est pas trouvée.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

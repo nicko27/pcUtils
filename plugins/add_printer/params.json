@@ -1,0 +1,36 @@
+{
+    "plugin_name": "add_printer",
+    "instance_id": 1,
+    "name": "Imprimantes - Ajout",
+    "show_name": "add_printer",
+    "icon": "\ud83d\udda8",
+    "text_mode": true,
+    "config": {
+        "printer_name": "SOLC",
+        "printer_model": "KM227.yml",
+        "printer_ip": "128.81.4.184",
+        "printer_all": true,
+        "printer_a3": false,
+        "remote_execution": false,
+        "printer_model_content": {
+            "title": "Photocopieur Konica Minolta 227",
+            "nom": "KMC227",
+            "ppdFile": "/usr/share/ppd/Gendarmerie-SOLIMP4/Konica_227.ppd",
+            "couleurs": "0",
+            "rectoverso": "1",
+            "agraffes": "0",
+            "a3": "0",
+            "orecto": "-o KMDuplex=1Sided",
+            "orectoverso": "-o KMDuplex=2Sided",
+            "onb": "-o SelectColor=Grayscale",
+            "ocouleurs": "-o SelectColor=Color",
+            "oagraffes": "-o Staple=1Staple(Left) -o Finisher=FS534",
+            "oa4": "-o PageSize=A4",
+            "oa3": "-o PageSize=A3",
+            "ocommun": "",
+            "mode": "ppd",
+            "socket": "ipp://"
+        }
+    },
+    "remote_execution": false
+}

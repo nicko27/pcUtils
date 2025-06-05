@@ -1,0 +1,64 @@
+# Configuration SSH pour pcUtils
+# Ce fichier permet de personnaliser les paramètres de connexion SSH
+
+# Paramètres de connexion
+connection:
+  # Timeout de connexion en secondes
+  connect_timeout: 10
+  
+  # Timeout pour le transfert de fichiers en secondes
+  transfer_timeout: 60
+  
+  # Timeout pour l'exécution des commandes en secondes
+  command_timeout: 120
+  
+  # Nombre de tentatives de connexion
+  retry_count: 2
+  
+  # Délai entre les tentatives en secondes
+  retry_delay: 3
+
+# Paramètres d'authentification
+authentication:
+  # Accepter automatiquement les nouvelles clés d'hôte
+  auto_add_keys: true
+  
+  # Chemin vers le fichier known_hosts personnalisé (laisser vide pour utiliser le fichier par défaut)
+  known_hosts_file: ""
+  
+  # Utiliser l'authentification par clé si disponible
+  try_key_auth: true
+  
+  # Chemin vers la clé privée (laisser vide pour utiliser la clé par défaut)
+  private_key_path: ""
+
+# Paramètres d'exécution
+execution:
+  # Exécuter les opérations en local si l'IP cible est l'IP locale
+  use_local_for_localhost: true
+  
+  # Forcer l'utilisation de SSH même pour localhost (utile pour les tests)
+  force_ssh_for_localhost: false
+  
+  # Répertoire temporaire sur les machines distantes
+  remote_temp_dir: "/tmp/pcutils"
+  
+  # Nettoyer les fichiers temporaires après exécution
+  cleanup_temp_files: true
+  
+  # Exécution parallèle des commandes sur plusieurs machines
+  parallel_execution: false
+  
+  # Nombre maximum d'exécutions parallèles (si parallel_execution est true)
+  max_parallel: 5
+
+# Paramètres de journalisation
+logging:
+  # Niveau de détail pour les logs SSH (debug, info, warning, error)
+  log_level: "info"
+  
+  # Afficher les commandes SSH exécutées
+  show_commands: false
+  
+  # Journaliser les sorties complètes
+  log_full_output: false

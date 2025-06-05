@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/efi.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/efi.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour gérer les variables et entrées de démarrage EFI via la commande <code>efibootmgr</code>.
+      Permet de lister, créer, supprimer et modifier l'ordre des entrées de démarrage EFI.
+    </p>
+    <p class="dependency-warning">
+      Nécessite que les commandes <code>efibootmgr</code> et <code>findmnt</code> soient installées et que le système soit démarré en mode EFI.
+      La plupart des opérations nécessitent des privilèges root.
+    </p>
+    <p class="critical-warning">
+      <strong>ATTENTION :</strong> La manipulation des entrées de démarrage EFI est une opération critique. Des erreurs peuvent empêcher le système de démarrer correctement. Procédez avec une extrême prudence.
+    </p>
+    <p class="encryption-note">
+      <strong>Note sur les disques cryptés :</strong> Ce module gère les entrées de démarrage EFI qui pointent vers des chargeurs (ex: GRUB, systemd-boot) situés sur la partition système EFI (ESP). L'ESP doit être <strong>non cryptée</strong>. La configuration du chargeur pour déverrouiller les systèmes de fichiers cryptés (comme la racine "/") n'est pas gérée par ce module et doit être effectuée séparément (généralement via la configuration de GRUB/systemd-boot et de l'initramfs).
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#EfiCommands" class="toc-link">EfiCommands</a></li>
+        <li class="toc-item"><a href="#list_boot_entries" class="toc-link">list_boot_entries</a></li>
+        <li class="toc-item"><a href="#create_boot_entry" class="toc-link">create_boot_entry</a></li>
+        <li class="toc-item"><a href="#delete_boot_entry" class="toc-link">delete_boot_entry</a></li>
+        <li class="toc-item"><a href="#set_boot_order" class="toc-link">set_boot_order</a></li>
+        <li class="toc-item"><a href="#set_boot_active" class="toc-link">set_boot_active</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="EfiCommands"><code>EfiCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour gérer les entrées de démarrage EFI via <code>efibootmgr</code>.
+        Hérite de PluginUtilsBase pour l'exécution de commandes et la journalisation.
+      </p>
+    </section>
+
+    <h2 class="section-title">Méthodes Principales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="list_boot_entries"><code>list_boot_entries(verbose: bool = False, log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]</code></h4>
+      <p class="description">Liste les entrées de démarrage EFI actuelles, l'ordre de démarrage, le timeout et l'entrée active.</p>
+      <p class="sudo-warning">Nécessite généralement des privilèges root.</p>
+      <dl class="param-list">
+        <dt>verbose</dt>
+        <dd><span class="param-type">(bool)</span>: Si True, tente d'obtenir des informations plus détaillées (option <code>-v</code> d'efibootmgr). Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Any]]</span> - Un dictionnaire contenant les informations parsées (`BootCurrent`, `Timeout`, `BootOrder`, `Entries` {num: {label, path_info, active, details}}) ou None si erreur (ex: système non-EFI, commande manquante, erreur de parsing).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="create_boot_entry"><code>create_boot_entry(disk: str, partition: int, loader: str, label: str, optional_data: Optional[str] = None, check_esp: bool = True, check_loader: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Crée une nouvelle entrée de démarrage EFI.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <p class="critical-warning"><strong>ATTENTION :</strong> Opération critique.</p>
+      <dl class="param-list">
+        <dt>disk</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du disque contenant la partition EFI (ex: <code>/dev/sda</code>, <code>/dev/nvme0n1</code>).</dd>
+        <dt>partition</dt>
+        <dd><span class="param-type">(int)</span>: Numéro de la partition EFI sur le disque (ex: <code>1</code>).</dd>
+        <dt>loader</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du chargeur sur l'ESP, relatif à la racine de l'ESP. <strong>Doit utiliser des backslashes</strong> (<code>\\</code>) comme séparateurs (ex: <code>\\EFI\\ubuntu\\grubx64.efi</code>).</dd>
+        <dt>label</dt>
+        <dd><span class="param-type">(str)</span>: Nom descriptif pour cette entrée de démarrage (ex: "Ubuntu 24.04").</dd>
+        <dt>optional_data</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Données optionnelles spécifiques au chargeur à passer (option <code>-u</code>). Défaut: None.</dd>
+        <dt>check_esp</dt>
+        <dd><span class="param-type">(bool)</span>: Si True, vérifie que l'ESP est détectée et montée avant de continuer. Défaut: True.</dd>
+        <dt>check_loader</dt>
+        <dd><span class="param-type">(bool)</span>: Si True (et `check_esp`=True), vérifie que le fichier `loader` spécifié existe sur l'ESP montée. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la création a réussi, False sinon.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="delete_boot_entry"><code>delete_boot_entry(boot_num: Union[int, str], log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime une entrée de démarrage EFI par son numéro (hexadécimal ou décimal).</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <p class="critical-warning"><strong>ATTENTION :</strong> Opération critique. Ne supprimez pas les entrées nécessaires au démarrage.</p>
+      <dl class="param-list">
+        <dt>boot_num</dt>
+        <dd><span class="param-type">(Union[int, str])</span>: Numéro de l'entrée à supprimer (ex: <code>1</code>, <code>'000A'</code>). Sera converti en hexadécimal sur 4 chiffres.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la suppression a réussi ou si l'entrée n'existait pas, False en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_boot_order"><code>set_boot_order(boot_order: List[Union[int, str]], log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit l'ordre de priorité de démarrage des entrées EFI.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <p class="critical-warning"><strong>ATTENTION :</strong> Un mauvais ordre peut empêcher le démarrage de l'OS souhaité.</p>
+      <dl class="param-list">
+        <dt>boot_order</dt>
+        <dd><span class="param-type">(List[Union[int, str]])</span>: Liste des numéros d'entrées dans l'ordre souhaité (ex: <code>[1, 0, 10]</code>, <code>['000A', '0001']</code>).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la mise à jour de l'ordre a réussi, False sinon (ex: numéro invalide dans la liste).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_boot_active"><code>set_boot_active(boot_num: Union[int, str], active: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Marque une entrée de démarrage EFI comme active ou inactive.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>boot_num</dt>
+        <dd><span class="param-type">(Union[int, str])</span>: Numéro de l'entrée à modifier.</dd>
+        <dt>active</dt>
+        <dd><span class="param-type">(bool)</span>: Mettre à True pour activer (option <code>-a</code>), False pour désactiver (option <code>-A</code>). Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la modification a réussi, False sinon (ex: entrée inexistante).
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

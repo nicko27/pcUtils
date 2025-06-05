@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/interactive_commands.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/interactive_commands.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour exécuter des commandes interactives via Pexpect.
+      Fournit une interface structurée pour définir des scénarios d'interaction attente/réponse.
+    </p>
+    <p class="dependency-warning">
+      Nécessite l'installation du paquet Python <strong><code>pexpect</code></strong> (<code>pip install pexpect</code>).
+      Utilise également les commandes système sous-jacentes (ex: <code>sudo</code>, <code>sh</code>) via <code>self.run</code> pour la préparation de la commande si <code>needs_sudo=True</code>.
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#InteractiveCommands" class="toc-link">InteractiveCommands</a></li>
+        <li class="toc-item"><a href="#run_scenario" class="toc-link">run_scenario</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="InteractiveCommands"><code>InteractiveCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour exécuter des commandes interactives via Pexpect.
+        Permet de définir des scénarios d'attente/réponse.
+        Hérite de PluginUtilsBase pour la journalisation.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Méthodes Principales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="run_scenario"><code>run_scenario(command: Union[str, List[str]], scenario: List[Tuple[Union[str, Pattern, List[Union[str, Pattern]]], Optional[str], Optional[int]]], global_timeout: int = DEFAULT_TIMEOUT, log_transcript: bool = True, encoding: str = 'utf-8', cwd: Optional[str] = None, env: Optional[Dict[str, str]] = None, needs_sudo: bool = False, mask_responses: Optional[List[int]] = None) -> Tuple[bool, str]</code></h4>
+      <p class="description">
+        Exécute une commande interactive en suivant un scénario d'attentes et de réponses, en utilisant la bibliothèque <code>pexpect</code>.
+      </p>
+      <p class="sudo-warning">Si <code>needs_sudo=True</code>, la commande sera préfixée par <code>sudo -S</code>. L'appelant doit s'assurer que le mot de passe sudo est fourni via la variable d'environnement <code>SUDO_PASSWORD</code> si nécessaire.</p>
+
+      <div class="method-signature">
+        <pre><code>run_scenario(
+    command: Union[str, List[str]],
+    scenario: List[Tuple[
+        Union[str, Pattern, List[Union[str, Pattern]]], # Pattern(s) à attendre
+        Optional[str],                                   # Réponse à envoyer (ou None)
+        Optional[int]                                    # Timeout spécifique (ou None)
+    ]],
+    global_timeout: int = DEFAULT_TIMEOUT,
+    log_transcript: bool = True,
+    encoding: str = 'utf-8',
+    cwd: Optional[str] = None,
+    env: Optional[Dict[str, str]] = None,
+    needs_sudo: bool = False,
+    mask_responses: Optional[List[int]] = None
+) -> Tuple[bool, str]</code></pre>
+      </div>
+
+      <dl class="param-list">
+        <dt>command</dt>
+        <dd><span class="param-type">(Union[str, List[str]])</span>: Commande à exécuter (chaîne ou liste d'arguments).</dd>
+        <dt>scenario</dt>
+        <dd><span class="param-type">(List[Tuple[...]])</span>: Liste de tuples décrivant les étapes : <code>(pattern_attendu, reponse_a_envoyer, timeout_specifique)</code>. <code>pexpect.EOF</code> et <code>pexpect.TIMEOUT</code> sont automatiquement ajoutés aux attentes.</dd>
+        <dt>global_timeout</dt>
+        <dd><span class="param-type">(int)</span>: Timeout par défaut pour chaque attente en secondes. Défaut: 30.</dd>
+        <dt>log_transcript</dt>
+        <dd><span class="param-type">(bool)</span>: Logguer l'intégralité de l'interaction (peut inclure des données sensibles si non masquées). Défaut: True.</dd>
+        <dt>encoding</dt>
+        <dd><span class="param-type">(str)</span>: Encodage à utiliser. Défaut: 'utf-8'.</dd>
+        <dt>cwd</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Répertoire de travail. Défaut: None.</dd>
+        <dt>env</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Environnement d'exécution (remplace l'environnement courant si fourni). Défaut: None.</dd>
+        <dt>needs_sudo</dt>
+        <dd><span class="param-type">(bool)</span>: Préfixer la commande avec <code>sudo -S</code>. Défaut: False.</dd>
+        <dt>mask_responses</dt>
+        <dd><span class="param-type">(Optional[List[int]])</span>: Liste des indices (0-based) des réponses dans le scénario à masquer dans les logs (ex: mots de passe). Défaut: None.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Tuple[bool, str]</span> - Un tuple contenant :
+        <ul>
+          <li><code>success</code> (bool): True si le scénario s'est déroulé sans timeout/EOF inattendu et si le code de sortie final est 0.</li>
+          <li><code>full_output</code> (str): La transcription complète de l'interaction (si <code>log_transcript=True</code>) ou une approximation basée sur ce que pexpect a lu.</li>
+        </ul>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

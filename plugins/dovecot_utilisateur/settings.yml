@@ -1,0 +1,17 @@
+name: Dovecot - Configuration utilisateurs
+description: Configure tous les compte thunderbird d'un ordinateur pour les dossiers locaux unités
+version: 1.0
+category: Système
+multiple: false
+ssh_debug: true
+icon: 🛠️
+# Ajout du support pour l'exécution distante
+remote_execution: true
+needs_sudo: false
+config_fields:
+  sms:
+    type: text
+    label: Nom de machine de la sms
+    required: true
+    validate: no_spaces
+    default: "ggd027sf"

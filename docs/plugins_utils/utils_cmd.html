@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/utils_cmd.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/utils_cmd.py</code></h1>
+
+    <p class="module-description">
+      Module fournissant diverses fonctions utilitaires générales,
+      notamment pour la manipulation de dictionnaires et la gestion de processus (kill).
+    </p>
+    <p class="dependency-warning">
+      Utilise les modules Python standard : <code>os</code>, <code>re</code>, <code>json</code>, <code>typing</code>, <code>time</code>.
+      Nécessite les commandes <code>ps</code> et <code>kill</code> pour les fonctions de gestion de processus.
+    </p>
+    <p class="sudo-warning">Les opérations de terminaison de processus (<code>kill_process</code>, <code>kill_process_by_name</code>) peuvent nécessiter des privilèges root pour affecter les processus d'autres utilisateurs.</p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#UtilsCommands" class="toc-link">UtilsCommands</a></li>
+        <li class="toc-item"><a href="#get_options_dict" class="toc-link">get_options_dict</a></li>
+        <li class="toc-item"><a href="#merge_dictionaries" class="toc-link">merge_dictionaries</a></li>
+        <li class="toc-item"><a href="#kill_process" class="toc-link">kill_process</a></li>
+        <li class="toc-item"><a href="#kill_process_by_name" class="toc-link">kill_process_by_name</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="UtilsCommands"><code>UtilsCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour des fonctions utilitaires générales.
+        Hérite de PluginUtilsBase pour l'exécution de commandes et la journalisation.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Méthodes Principales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_options_dict"><code>get_options_dict(self, data, log_levels: Optional[Dict[str, str]] = None) -> dict</code></h4>
+      <p class="description">Extrait un dictionnaire d'options à partir d'une structure de données attendue (soit une liste contenant un seul dictionnaire, soit directement un dictionnaire).</p>
+      <dl class="param-list">
+        <dt>data</dt>
+        <dd><span class="param-type">(Any)</span>: Données d'entrée (typiquement une liste ou un dictionnaire).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">dict</span> - Le dictionnaire d'options extrait, ou un dictionnaire vide si la structure n'est pas reconnue.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="merge_dictionaries"><code>merge_dictionaries(self, *dictionaries, log_levels: Optional[Dict[str, str]] = None) -> dict</code></h4>
+      <p class="description">Fusionne un nombre quelconque de dictionnaires en un nouveau dictionnaire. Les clés des dictionnaires suivants écrasent les clés identiques des précédents.</p>
+      <dl class="param-list">
+        <dt>*dictionaries</dt>
+        <dd><span class="param-type">(dict)</span>: Une séquence de zéro, un ou plusieurs dictionnaires à fusionner.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">dict</span> - Un nouveau dictionnaire contenant toutes les paires clé-valeur fusionnées.
+      </div>
+       <p><strong>Lève :</strong> <code>TypeError</code> si l'un des arguments n'est pas un dictionnaire.</p>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="kill_process"><code>kill_process(self, process_id: Union[int, str], force: bool = False, wait: bool = True, timeout: int = 10, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Tue un processus par son ID via la commande <code>kill</code>. Peut forcer l'arrêt (SIGKILL) et attendre la fin du processus.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour tuer les processus d'autres utilisateurs.</p>
+      <dl class="param-list">
+        <dt>process_id</dt>
+        <dd><span class="param-type">(Union[int, str])</span>: ID du processus à tuer.</dd>
+        <dt>force</dt>
+        <dd><span class="param-type">(bool)</span>: Utiliser SIGKILL (<code>kill -9</code>) au lieu de SIGTERM. Défaut: False.</dd>
+        <dt>wait</dt>
+        <dd><span class="param-type">(bool)</span>: Attendre que le processus soit terminé après l'envoi du signal. Défaut: True.</dd>
+        <dt>timeout</dt>
+        <dd><span class="param-type">(int)</span>: Temps d'attente maximum en secondes (si <code>wait=True</code>). Défaut: 10.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le processus a été tué avec succès (ou n'existait pas), False sinon (ex: échec de kill, timeout d'attente).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="kill_process_by_name"><code>kill_process_by_name(self, process_name: str, force: bool = False, all_instances: bool = False, wait: bool = True, timeout: int = 10, log_levels: Optional[Dict[str, str]] = None) -> Tuple[bool, int]</code></h4>
+      <p class="description">Tue un ou plusieurs processus par leur nom en utilisant <code>pgrep</code> pour trouver les PIDs puis <code>kill</code>.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour tuer les processus d'autres utilisateurs.</p>
+      <dl class="param-list">
+        <dt>process_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom (ou partie du nom/commande) du processus à tuer.</dd>
+        <dt>force</dt>
+        <dd><span class="param-type">(bool)</span>: Utiliser SIGKILL (<code>kill -9</code>). Défaut: False.</dd>
+        <dt>all_instances</dt>
+        <dd><span class="param-type">(bool)</span>: Tuer toutes les instances correspondantes trouvées par pgrep. Si False, tue seulement la première. Défaut: False.</dd>
+        <dt>wait</dt>
+        <dd><span class="param-type">(bool)</span>: Attendre que les processus soient terminés. Défaut: True.</dd>
+        <dt>timeout</dt>
+        <dd><span class="param-type">(int)</span>: Temps d'attente maximum par processus (si <code>wait=True</code>). Défaut: 10.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Tuple[bool, int]</span> - Un tuple contenant :
+        <ul>
+            <li><code>success</code> (bool): True si *tous* les processus ciblés ont été tués avec succès (ou n'existaient pas).</li>
+            <li><code>killed_count</code> (int): Nombre de processus effectivement tués avec succès.</li>
+        </ul>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

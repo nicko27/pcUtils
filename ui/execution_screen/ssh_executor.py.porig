@@ -1,0 +1,857 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Module pour l'exécution SSH des plugins - Version réécrite.
+
+Ce module fournit une classe pour exécuter des plugins PCUtils via SSH,
+avec gestion asynchrone des sorties et intégration avec l'interface utilisateur.
+Basé sur la structure du local_executor avec adaptations pour SSH.
+"""
+
+import os
+import sys
+import json
+import asyncio
+import logging
+import traceback
+import time
+import tempfile
+import threading
+from datetime import datetime
+from typing import Dict, Tuple, Optional, Any, List
+from pathlib import Path
+
+import paramiko
+
+# Imports internes
+try:
+    from ..utils.logging import get_logger
+    from ..choice_screen.plugin_utils import get_plugin_folder_name
+    from .logger_utils import LoggerUtils
+    from .file_content_handler import FileContentHandler
+    from .root_credentials_manager import RootCredentialsManager
+    from ..ssh_manager.ssh_config_loader import SSHConfigLoader
+    from ..ssh_manager.ip_utils import get_target_ips
+    INTERNAL_MODULES_AVAILABLE = True
+except ImportError:
+    INTERNAL_MODULES_AVAILABLE = False
+
+# Configuration des constantes
+DEFAULT_SSH_PORT = 22
+DEFAULT_TIMEOUT = 300
+TEMP_DIR_PREFIX = "pcUtils_"
+PLUGIN_EXEC_FILE = 'exec.py'
+CONFIG_FILE = 'config.json'
+WRAPPER_CONFIG_FILE = 'wrapper_config.json'
+SSH_WRAPPER_FILE = 'ssh_wrapper.py'
+
+# Messages d'erreur
+ERROR_MESSAGES = {
+    'no_ssh_creds': "Identifiants SSH manquants dans la configuration",
+    'no_target_ips': "Aucune adresse IP cible spécifiée",
+    'connection_failed': "Échec de la connexion SSH",
+    'file_copy_failed': "Échec de la copie des fichiers",
+    'execution_failed': "Échec de l'exécution sur au moins une machine"
+}
+
+# Fallback logger
+if INTERNAL_MODULES_AVAILABLE:
+    logger = get_logger('ssh_executor')
+else:
+    logger = logging.getLogger('ssh_executor')
+    logger.setLevel(logging.DEBUG)
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+
+class SSHExecutor:
+    """
+    Classe pour l'exécution des plugins via SSH.
+
+    Cette classe gère l'exécution des plugins sur des machines distantes via SSH,
+    la copie des fichiers nécessaires et l'affichage des logs dans l'interface utilisateur.
+    """
+
+    def __init__(self, app=None):
+        """
+        Initialise l'exécuteur SSH.
+
+        Args:
+            app: Application Textual (optionnel)
+        """
+        self.app = app
+
+        # Détecter si nous sommes dans un debugger
+        self.debugger_mode = self._is_debugger_active()
+
+        # État des connexions en cours
+        self._active_connections = {}
+
+        # Verrou pour les opérations concurrentes
+        self._lock = threading.RLock()
+
+        # Manager des identifiants root
+        self.root_credentials_manager = RootCredentialsManager.get_instance()
+
+        logger.debug(f"SSHExecutor initialisé, debugger_mode={self.debugger_mode}")
+
+    def _is_debugger_active(self) -> bool:
+        """
+        Détecte si le processus est exécuté dans un débogueur.
+
+        Returns:
+            bool: True si un débogueur est actif
+        """
+        # Méthode 1: Vérifier sys.gettrace
+        if hasattr(sys, 'gettrace') and sys.gettrace():
+            return True
+
+        # Méthode 2: Vérifier les variables d'environnement
+        debug_env_vars = [
+            'PYTHONBREAKPOINT', 'VSCODE_DEBUG', 'PYCHARM_DEBUG',
+            'PYDEVD_USE_FRAME_EVAL', 'DEBUG', 'TEXTUAL_DEBUG',
+            'FORCE_DEBUG_MODE'
+        ]
+        if any(os.environ.get(var) for var in debug_env_vars):
+            return True
+
+        # Méthode 3: Vérifier les modules de débogage
+        debug_modules = ['pydevd', 'debugpy', '_pydevd_bundle', 'pdb']
+        if any(mod in sys.modules for mod in debug_modules):
+            return True
+
+        return False
+
+    def log_message(self, message: str, level: str = "info", target_ip: Optional[str] = None):
+        """
+        Ajoute un message au log de l'application.
+
+        Args:
+            message: Le message à ajouter au log
+            level: Le niveau de log (info, debug, error, success)
+            target_ip: Adresse IP cible (optionnel)
+        """
+        logger.debug(f"Ajout d'un message au log: {level}:{message[:50]}...")
+
+        try:
+            # Si LoggerUtils est disponible, l'utiliser
+            if hasattr(LoggerUtils, 'add_log') and self.app:
+                # Créer une coroutine pour ajouter le message au log
+                async def add_log_async():
+                    await LoggerUtils.add_log(self.app, message, level=level, target_ip=target_ip)
+
+                # Exécuter la coroutine dans la boucle d'événements
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(add_log_async())
+                except RuntimeError:
+                    # Pas de boucle en cours
+                    if self.debugger_mode:
+                        # En mode débogueur, simplement afficher sur la console
+                        print(f"[{level.upper()}] {message}")
+                    else:
+                        # Essayer de créer une boucle temporaire
+                        try:
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            loop.run_until_complete(add_log_async())
+                            loop.close()
+                        except Exception as e:
+                            logger.error(f"Impossible d'exécuter add_log_async: {e}")
+                            print(f"[{level.upper()}] {message}")
+            else:
+                # Fallback: afficher sur la console
+                print(f"[{level.upper()}] {message}")
+
+        except Exception as e:
+            logger.error(f"Erreur lors de l'ajout du message au log: {e}")
+            # Fallback ultime: simplement logger
+            logger.log(
+                logging.ERROR if level.lower() == "error" else
+                logging.WARNING if level.lower() == "warning" else
+                logging.INFO,
+                message
+            )
+
+    async def execute_plugin(self, plugin_widget, folder_name: str, config: dict) -> Tuple[bool, str]:
+        """
+        Exécute un plugin sur les machines distantes via SSH.
+
+        Args:
+            plugin_widget: Le widget Textual représentant le plugin (peut être None)
+            folder_name: Le nom du dossier du plugin
+            config: La configuration du plugin
+
+        Returns:
+            Tuple[bool, str]: (succès, sortie)
+        """
+        try:
+            logger.info(f"Exécution SSH du plugin {folder_name}")
+
+            # Stocker l'application et le widget pour les affichages de logs
+            if hasattr(plugin_widget, 'app'):
+                self.app = plugin_widget.app
+
+            # Récupérer la configuration SSH
+            ssh_config = SSHConfigLoader.get_instance().get_authentication_config()
+            plugin_config = config.get('config', {})
+
+            # Récupérer les adresses IP cibles
+            target_ips = self._get_target_ips(plugin_config, config)
+            if not target_ips:
+                error_msg = ERROR_MESSAGES['no_target_ips']
+                logger.error(error_msg)
+                self.log_message(error_msg, "error")
+                return False, error_msg
+
+            logger.info(f"IPs cibles trouvées: {target_ips}")
+
+            # Récupérer les paramètres SSH
+            ssh_user, ssh_password, ssh_port = self._get_ssh_credentials(ssh_config, plugin_config)
+            if not ssh_user or not ssh_password:
+                error_msg = ERROR_MESSAGES['no_ssh_creds']
+                logger.error(error_msg)
+                self.log_message(error_msg, "error")
+                return False, error_msg
+
+            logger.info(f"Utilisation des identifiants SSH: utilisateur={ssh_user}, port={ssh_port}")
+
+            # Marquer le début de l'exécution
+            target_ip = getattr(plugin_widget, 'target_ip', None) if plugin_widget else None
+            self.log_message(f"Début de l'exécution SSH du plugin {folder_name}", "start", target_ip)
+
+            # Exécuter le plugin sur chaque machine
+            results = []
+            for ip in target_ips:
+                logger.info(f"Exécution sur {ip}")
+                self.log_message(f"Connexion à {ip}...", "info", ip)
+
+                success, output = await self._execute_on_single_host(
+                    ip, ssh_user, ssh_password, ssh_port, folder_name, config, plugin_widget
+                )
+                results.append((ip, success, output))
+
+            # Consolider les résultats
+            all_success = all(success for _, success, _ in results)
+
+            # Générer un résumé des exécutions
+            self._log_execution_summary(results, folder_name, all_success)
+
+            # Retourner le résultat global
+            all_outputs = [output for _, _, output in results]
+            if all_success:
+                self.log_message(f"Plugin {folder_name} exécuté avec succès sur toutes les machines", "success", target_ip)
+                return True, "\n".join(all_outputs)
+            else:
+                error_msg = f"{ERROR_MESSAGES['execution_failed']}:\n" + "\n".join(all_outputs)
+                self.log_message(f"Échec du plugin {folder_name} sur certaines machines", "error", target_ip)
+                return False, error_msg
+
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Erreur lors de l'exécution SSH du plugin {folder_name}: {error_msg}")
+            logger.error(traceback.format_exc())
+
+            target_ip = getattr(plugin_widget, 'target_ip', None) if plugin_widget else None
+            self.log_message(
+                f"Erreur lors de l'exécution SSH du plugin {folder_name}: {error_msg}",
+                "error",
+                target_ip
+            )
+            return False, error_msg
+
+    def _get_target_ips(self, plugin_config: Dict, config: Dict) -> List[str]:
+        """
+        Récupère les adresses IP cibles depuis la configuration.
+
+        Args:
+            plugin_config: Configuration du plugin
+            config: Configuration complète
+
+        Returns:
+            List[str]: Liste des adresses IP cibles
+        """
+        target_ips = []
+
+        # Chercher dans la configuration du plugin
+        for key in ['ssh_ips', 'target_ip']:
+            if key in plugin_config:
+                value = plugin_config[key]
+                if isinstance(value, str):
+                    target_ips.extend(ip.strip() for ip in value.split(',') if ip.strip())
+                elif isinstance(value, list):
+                    target_ips.extend(ip.strip() for ip in value if ip.strip())
+
+        # Si pas trouvé, utiliser la fonction d'utilitaire
+        if not target_ips:
+            target_ips = get_target_ips(config)
+
+        # Filtrer les IPs vides ou None
+        return [ip for ip in target_ips if ip and ip.strip()]
+
+    def _get_ssh_credentials(self, ssh_config: Dict, plugin_config: Dict) -> Tuple[str, str, int]:
+        """
+        Récupère les identifiants SSH depuis la configuration.
+
+        Args:
+            ssh_config: Configuration SSH globale
+            plugin_config: Configuration du plugin
+
+        Returns:
+            Tuple[str, str, int]: (utilisateur, mot_de_passe, port)
+        """
+        # Essayer d'abord la configuration globale
+        ssh_user = ssh_config.get('ssh_user', '')
+        ssh_password = ssh_config.get('ssh_passwd', '')
+        ssh_port = ssh_config.get('ssh_port', DEFAULT_SSH_PORT)
+
+        # Si pas trouvé, essayer la configuration du plugin
+        if not ssh_user or not ssh_password:
+            ssh_user = plugin_config.get('ssh_user', ssh_user)
+            ssh_password = plugin_config.get('ssh_passwd', ssh_password)
+            logger.info("Utilisation des identifiants SSH du plugin")
+
+        return ssh_user, ssh_password, ssh_port
+
+    async def _execute_on_single_host(self, host: str, ssh_user: str, ssh_password: str,
+                                    ssh_port: int, folder_name: str, config: dict,
+                                    plugin_widget) -> Tuple[bool, str]:
+        """
+        Exécute le plugin sur un hôte spécifique.
+
+        Args:
+            host: Adresse IP de l'hôte
+            ssh_user: Nom d'utilisateur SSH
+            ssh_password: Mot de passe SSH
+            ssh_port: Port SSH
+            folder_name: Nom du dossier du plugin
+            config: Configuration du plugin
+            plugin_widget: Widget du plugin
+
+        Returns:
+            Tuple[bool, str]: (succès, sortie)
+        """
+        ssh_client = None
+        sftp_client = None
+        temp_dir = None
+
+        try:
+            # Créer la connexion SSH
+            ssh_client = paramiko.SSHClient()
+            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+            # Connexion avec timeout
+            await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: ssh_client.connect(
+                    host,
+                    port=ssh_port,
+                    username=ssh_user,
+                    password=ssh_password,
+                    timeout=30
+                )
+            )
+
+            self.log_message(f"Connexion SSH établie avec {host}", "info", host)
+
+            # Créer le répertoire temporaire
+            temp_dir = f"/tmp/{TEMP_DIR_PREFIX}{int(time.time())}"
+            await self._create_remote_directory(ssh_client, temp_dir)
+
+            # Ouvrir la session SFTP
+            sftp_client = await asyncio.get_event_loop().run_in_executor(
+                None, ssh_client.open_sftp
+            )
+
+            # Copier les fichiers du plugin
+            await self._copy_plugin_files(sftp_client, folder_name, temp_dir, config)
+
+            # Créer et copier le script wrapper
+            await self._setup_ssh_wrapper(sftp_client, temp_dir, config)
+
+            # Exécuter le plugin via le wrapper
+            success, output = await self._execute_plugin_on_host(
+                ssh_client, temp_dir, plugin_widget, host
+            )
+
+            return success, output
+
+        except Exception as e:
+            error_msg = f"Erreur lors de l'exécution sur {host}: {str(e)}"
+            logger.error(error_msg)
+            logger.error(traceback.format_exc())
+            self.log_message(error_msg, "error", host)
+            return False, error_msg
+
+        finally:
+            # Nettoyer les ressources
+#            try:
+#                if temp_dir and ssh_client:
+#                    # Supprimer le répertoire temporaire
+#                    await asyncio.get_event_loop().run_in_executor(
+#                        None,
+#                        lambda: ssh_client.exec_command(f"rm -rf {temp_dir}")
+#                    )
+#           except Exception as e:
+#                logger.warning(f"Erreur lors du nettoyage sur {host}: {e}")
+
+            try:
+                if sftp_client:
+                    sftp_client.close()
+                if ssh_client:
+                    ssh_client.close()
+            except Exception as e:
+                logger.warning(f"Erreur lors de la fermeture des connexions: {e}")
+
+    async def _create_remote_directory(self, ssh_client: paramiko.SSHClient, temp_dir: str):
+        """
+        Crée le répertoire temporaire sur la machine distante.
+
+        Args:
+            ssh_client: Client SSH
+            temp_dir: Chemin du répertoire temporaire
+        """
+        stdin, stdout, stderr = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: ssh_client.exec_command(f"mkdir -p {temp_dir}")
+        )
+
+        exit_status = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: stderr.channel.recv_exit_status()
+        )
+
+        if exit_status != 0:
+            error_msg = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: stderr.read().decode()
+            )
+            raise Exception(f"Erreur lors de la création du répertoire temporaire: {error_msg}")
+
+    async def _copy_plugin_files(self, sftp_client, folder_name: str, temp_dir: str, config: dict):
+        """
+        Copie les fichiers du plugin vers le répertoire temporaire distant.
+
+        Args:
+            sftp_client: Client SFTP
+            folder_name: Nom du dossier du plugin
+            temp_dir: Répertoire temporaire distant
+            config: Configuration du plugin
+        """
+        # Déterminer le répertoire de base des plugins
+        base_dir = self._determine_base_dir()
+        plugin_dir = os.path.join(base_dir, "plugins", folder_name)
+        plugins_utils_dir = os.path.join(base_dir, "plugins", "plugins_utils")
+
+        if not os.path.isdir(plugin_dir):
+            raise Exception(f"Répertoire du plugin introuvable: {plugin_dir}")
+
+        # Copier le module plugins_utils
+        if os.path.exists(plugins_utils_dir):
+            remote_plugins_utils = f"{temp_dir}/plugins_utils"
+            await self._copy_directory_sftp(sftp_client, plugins_utils_dir, remote_plugins_utils)
+
+        # Copier les fichiers du plugin
+        await self._copy_directory_sftp(sftp_client, plugin_dir, temp_dir)
+
+        # Vérifier que exec.py a été copié
+        try:
+            await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: sftp_client.stat(f"{temp_dir}/{PLUGIN_EXEC_FILE}")
+            )
+            logger.debug(f"{PLUGIN_EXEC_FILE} copié avec succès")
+        except FileNotFoundError:
+            raise Exception(f"{PLUGIN_EXEC_FILE} n'a pas été copié")
+
+        # Créer le fichier de configuration
+        await self._create_config_file(sftp_client, temp_dir, config, folder_name)
+
+    async def _copy_directory_sftp(self, sftp_client, local_dir: str, remote_dir: str):
+        """
+        Copie récursivement un répertoire via SFTP.
+
+        Args:
+            sftp_client: Client SFTP
+            local_dir: Répertoire local source
+            remote_dir: Répertoire distant cible
+        """
+        # Créer le répertoire distant
+        try:
+            await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: sftp_client.mkdir(remote_dir)
+            )
+        except Exception:
+            pass  # Le répertoire existe peut-être déjà
+
+        # Copier tous les fichiers et sous-répertoires
+        for item in os.listdir(local_dir):
+            if item in ['settings.yml', '__pycache__']:
+                continue  # Ignorer certains fichiers
+
+            local_path = os.path.join(local_dir, item)
+            remote_path = f"{remote_dir}/{item}"
+
+            if os.path.isfile(local_path):
+                await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda lp=local_path, rp=remote_path: sftp_client.put(lp, rp)
+                )
+            elif os.path.isdir(local_path):
+                await self._copy_directory_sftp(sftp_client, local_path, remote_path)
+
+    async def _create_config_file(self, sftp_client, temp_dir: str, config: dict, folder_name: str):
+        """
+        Crée le fichier de configuration du plugin sur la machine distante.
+
+        Args:
+            sftp_client: Client SFTP
+            temp_dir: Répertoire temporaire distant
+            config: Configuration du plugin
+            folder_name: Nom du dossier du plugin
+        """
+        # Traiter le contenu des fichiers si nécessaire
+        base_dir = self._determine_base_dir()
+        plugin_dir = os.path.join(base_dir, "plugins", folder_name)
+
+        plugin_config_with_files = config.copy()
+
+        if INTERNAL_MODULES_AVAILABLE:
+            try:
+                # Charger les paramètres du plugin
+                plugin_settings = self._load_plugin_settings(plugin_dir)
+
+                # Traiter le contenu des fichiers
+                file_content = FileContentHandler.process_file_content(
+                    plugin_settings, config.get('config', {}), plugin_dir
+                )
+
+                # Intégrer le contenu des fichiers dans la configuration
+                for param_name, content in file_content.items():
+                    plugin_config_with_files['config'][param_name] = content
+                    logger.info(f"Contenu du fichier intégré dans config.{param_name}")
+
+            except Exception as e:
+                logger.error(f"Erreur lors du traitement des fichiers de configuration: {e}")
+
+        # Créer le fichier de configuration localement
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
+            json.dump(plugin_config_with_files, temp_file, indent=2)
+            local_config_path = temp_file.name
+
+        try:
+            # Copier vers la machine distante
+            remote_config_path = f"{temp_dir}/{CONFIG_FILE}"
+            await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: sftp_client.put(local_config_path, remote_config_path)
+            )
+            logger.debug(f"Fichier de configuration copié: {remote_config_path}")
+        finally:
+            # Nettoyer le fichier temporaire local
+            try:
+                os.unlink(local_config_path)
+            except Exception:
+                pass
+
+    async def _setup_ssh_wrapper(self, sftp_client, temp_dir: str, config: dict):
+        """
+        Configure et copie le script wrapper SSH.
+
+        Args:
+            sftp_client: Client SFTP
+            temp_dir: Répertoire temporaire distant
+            config: Configuration du plugin
+        """
+        # Copier le script wrapper
+        wrapper_source = os.path.join(os.path.dirname(__file__), SSH_WRAPPER_FILE)
+        remote_wrapper = f"{temp_dir}/{SSH_WRAPPER_FILE}"
+
+        await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: sftp_client.put(wrapper_source, remote_wrapper)
+        )
+
+        # Créer la configuration du wrapper
+        plugin_settings = self._load_plugin_settings_for_wrapper(config)
+        wrapper_config = {
+            'plugin_path': f"{temp_dir}/{PLUGIN_EXEC_FILE}",
+            'plugin_config': config,
+            'needs_sudo': plugin_settings.get('needs_sudo', False),
+        }
+
+        # Créer le fichier de configuration du wrapper localement
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
+            json.dump(wrapper_config, temp_file, indent=2)
+            local_wrapper_config = temp_file.name
+
+        # Copier vers la machine distante
+        remote_wrapper_config = f"{temp_dir}/{WRAPPER_CONFIG_FILE}"
+        await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: sftp_client.put(local_wrapper_config, remote_wrapper_config)
+        )
+
+
+    async def _execute_plugin_on_host(self, ssh_client: paramiko.SSHClient, temp_dir: str,
+                                    plugin_widget, target_ip: str) -> Tuple[bool, str]:
+        """
+        Exécute le plugin sur l'hôte via le wrapper SSH.
+
+        Args:
+            ssh_client: Client SSH
+            temp_dir: Répertoire temporaire
+            plugin_widget: Widget du plugin
+            target_ip: Adresse IP cible
+
+        Returns:
+            Tuple[bool, str]: (succès, sortie)
+        """
+        cmd = f"python3 {temp_dir}/{SSH_WRAPPER_FILE} {temp_dir}/{WRAPPER_CONFIG_FILE}"
+
+        stdin, stdout, stderr = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: ssh_client.exec_command(cmd, timeout=DEFAULT_TIMEOUT, get_pty=True)
+        )
+
+        # Lire les sorties en temps réel
+        collected_output, collected_errors = await self._read_ssh_output(
+            stdout, stderr, plugin_widget, target_ip
+        )
+
+        # Attendre la fin de l'exécution
+        exit_status = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: stderr.channel.recv_exit_status()
+        )
+
+        if exit_status != 0:
+            error_message = "\n".join(collected_errors) if collected_errors else "Erreur inconnue"
+            return False, f"Erreur lors de l'exécution: {error_message}"
+
+        output_text = "\n".join(collected_output)
+        return True, output_text
+
+    async def _read_ssh_output(self, stdout, stderr, plugin_widget, target_ip: str):
+        """
+        Lit et traite les sorties SSH en temps réel.
+
+        Args:
+            stdout: Flux stdout SSH
+            stderr: Flux stderr SSH
+            plugin_widget: Widget du plugin
+            target_ip: Adresse IP cible
+
+        Returns:
+            Tuple[List[str], List[str]]: (lignes_stdout, lignes_stderr)
+        """
+        collected_output = []
+        collected_errors = []
+
+        # Fonction pour lire un flux de manière asynchrone
+        async def read_stream(stream, is_stderr=False):
+            loop = asyncio.get_event_loop()
+            while True:
+                line = await loop.run_in_executor(None, stream.readline)
+                if not line:
+                    break
+
+                line_text = line.decode('utf-8', errors='replace').strip() if isinstance(line, bytes) else line.strip()
+                if not line_text:
+                    continue
+
+                logger.debug(f"Ligne reçue de {target_ip}: {line_text}")
+
+                try:
+                    # Traiter via LoggerUtils si disponible
+                    if hasattr(LoggerUtils, 'process_output_line') and self.app:
+                        await LoggerUtils.process_output_line(
+                            self.app,
+                            line_text,
+                            plugin_widget,
+                            target_ip=target_ip
+                        )
+
+                    # Collecter les sorties
+                    if is_stderr:
+                        collected_errors.append(line_text)
+                    else:
+                        collected_output.append(line_text)
+
+                except Exception as e:
+                    logger.error(f"Erreur lors du traitement de la ligne de {target_ip}: {e}")
+                    # Tenter un affichage de secours
+                    if hasattr(LoggerUtils, 'add_log') and self.app:
+                        await LoggerUtils.add_log(
+                            self.app,
+                            f"Erreur de traitement: {line_text}",
+                            "error" if is_stderr else "info",
+                            target_ip=target_ip
+                        )
+
+        # Créer des tâches pour lire les flux stdout et stderr
+        stdout_task = asyncio.create_task(read_stream(stdout))
+        stderr_task = asyncio.create_task(read_stream(stderr, True))
+
+        # Attendre que les tâches soient terminées
+        await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
+
+        return collected_output, collected_errors
+
+    def _determine_base_dir(self) -> str:
+        """
+        Détermine le répertoire de base de l'application.
+
+        Returns:
+            str: Chemin du répertoire de base
+        """
+        # Méthode 1: Remonter depuis le module actuel
+        try:
+            current_file = os.path.abspath(__file__)
+            # Remonter de 3 niveaux (ssh_executor.py -> execution_screen -> ui -> base)
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+            if os.path.isdir(os.path.join(base_dir, "plugins")):
+                return base_dir
+        except NameError:
+            pass
+
+        # Méthode 2: Utiliser le répertoire courant
+        if os.path.isdir("plugins"):
+            return os.getcwd()
+
+        # Méthode 3: Tester plusieurs chemins relatifs possibles
+        for path in [".", "..", "../..", "../../.."]:
+            test_path = os.path.abspath(path)
+            if os.path.isdir(os.path.join(test_path, "plugins")):
+                return test_path
+
+        # Fallback: retourner le répertoire courant avec avertissement
+        logger.warning("Impossible de déterminer le répertoire de base, utilisation du répertoire courant")
+        return os.getcwd()
+
+    def _load_plugin_settings(self, plugin_dir: str) -> Dict:
+        """
+        Charge les paramètres du plugin depuis settings.yml.
+
+        Args:
+            plugin_dir: Répertoire du plugin
+
+        Returns:
+            Dict: Paramètres du plugin ou dict vide en cas d'erreur
+        """
+        settings_path = os.path.join(plugin_dir, "settings.yml")
+        if not os.path.exists(settings_path):
+            logger.debug(f"Fichier settings.yml absent pour ce plugin")
+            return {}
+
+        try:
+            from ruamel.yaml import YAML
+            with open(settings_path, 'r', encoding='utf-8') as f:
+                settings = YAML().load(f)
+            logger.debug(f"Paramètres du plugin chargés: {settings}")
+            return settings if settings else {}
+        except ImportError:
+            logger.warning("Module ruamel.yaml non disponible, impossible de lire settings.yml")
+            return {}
+        except Exception as e:
+            logger.error(f"Erreur lors de la lecture des paramètres du plugin: {e}")
+            logger.error(traceback.format_exc())
+            return {}
+
+    def _load_plugin_settings_for_wrapper(self, config: dict) -> Dict:
+        """
+        Charge les paramètres du plugin pour la configuration du wrapper.
+
+        Args:
+            config: Configuration du plugin
+
+        Returns:
+            Dict: Paramètres du plugin
+        """
+        try:
+            plugin_name = config.get('plugin_name')
+            if not plugin_name:
+                return {}
+
+            base_dir = self._determine_base_dir()
+            plugin_dir = os.path.join(base_dir, "plugins", plugin_name)
+            return self._load_plugin_settings(plugin_dir)
+        except Exception as e:
+            logger.error(f"Erreur lors du chargement des paramètres pour le wrapper: {e}")
+            return {}
+
+    def _log_execution_summary(self, results: List[Tuple[str, bool, str]], plugin_name: str, all_success: bool):
+        """
+        Affiche un résumé des exécutions.
+
+        Args:
+            results: Liste des résultats (ip, succès, sortie)
+            plugin_name: Nom du plugin
+            all_success: True si toutes les exécutions ont réussi
+        """
+        try:
+            # Générer un résumé des exécutions par IP
+            summary_lines = []
+            for ip, success, _ in results:
+                status = "Succès" if success else "Échec"
+                summary_lines.append(f"{ip}: {plugin_name} - {status}")
+
+            # Ajouter une ligne de résumé global
+            if all_success:
+                summary_message = f"Exécution terminée avec succès sur toutes les machines ({len(results)}/{len(results)})"
+            else:
+                success_count = sum(1 for _, success, _ in results if success)
+                summary_message = f"Exécution terminée avec {success_count}/{len(results)} succès"
+
+            # Ajouter le résumé au journal
+            if self.app and hasattr(LoggerUtils, 'add_log'):
+                async def add_summary_logs():
+                    await LoggerUtils.add_log(
+                        self.app,
+                        summary_message,
+                        "success" if all_success else "warning"
+                    )
+
+                    for line in summary_lines:
+                        await LoggerUtils.add_log(
+                            self.app,
+                            line,
+                            "success"
+                        )
+
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(add_summary_logs())
+                except RuntimeError:
+                    # Pas de boucle en cours, afficher sur la console
+                    print(f"[SUMMARY] {summary_message}")
+                    for line in summary_lines:
+                        print(f"[SUMMARY] {line}")
+            else:
+                # Fallback: afficher sur la console
+                print(f"[SUMMARY] {summary_message}")
+                for line in summary_lines:
+                    print(f"[SUMMARY] {line}")
+
+        except Exception as e:
+            logger.error(f"Erreur lors de l'affichage du résumé: {e}")
+
+    def cleanup_connections(self):
+        """
+        Nettoie toutes les connexions SSH actives.
+        Utile avant la fermeture de l'application.
+        """
+        with self._lock:
+            for connection_id, connection_info in list(self._active_connections.items()):
+                try:
+                    ssh_client = connection_info.get('ssh_client')
+                    if ssh_client:
+                        ssh_client.close()
+                        logger.info(f"Connexion SSH fermée: {connection_id}")
+                except Exception as e:
+                    logger.error(f"Erreur lors de la fermeture de la connexion {connection_id}: {e}")
+
+            self._active_connections.clear()

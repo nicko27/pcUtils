@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/cron.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/cron.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour gérer les tâches planifiées (cron).
+      Permet de lister, ajouter et supprimer des tâches pour les utilisateurs
+      et dans les répertoires système (/etc/cron.d).
+    </p>
+    <p class="dependency-warning">
+      Nécessite les commandes <code>crontab</code>, <code>cat</code> (pour lire /etc/cron.d), <code>mv</code>, <code>chmod</code> (pour écrire dans /etc/cron.d).
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#CronCommands" class="toc-link">CronCommands</a></li>
+        <li class="toc-item"><a href="#list_user_cron" class="toc-link">list_user_cron</a></li>
+        <li class="toc-item"><a href="#add_user_cron_job" class="toc-link">add_user_cron_job</a></li>
+        <li class="toc-item"><a href="#remove_user_cron_job" class="toc-link">remove_user_cron_job</a></li>
+        <li class="toc-item"><a href="#list_system_cron_d_files" class="toc-link">list_system_cron_d_files</a></li>
+        <li class="toc-item"><a href="#read_cron_d_file" class="toc-link">read_cron_d_file</a></li>
+        <li class="toc-item"><a href="#add_system_cron_d_job" class="toc-link">add_system_cron_d_job</a></li>
+        <li class="toc-item"><a href="#remove_system_cron_d_job" class="toc-link">remove_system_cron_d_job</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="CronCommands"><code>CronCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour gérer les tâches cron système et utilisateur.
+        Hérite de PluginUtilsBase pour l'exécution de commandes.
+      </p>
+    </section>
+
+    <h2 class="section-title">Gestion Crontab Utilisateur</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="list_user_cron"><code>list_user_cron(username: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> Optional[List[str]]</code></h4>
+      <p class="description">Liste les tâches cron pour un utilisateur spécifique ou l'utilisateur courant via <code>crontab -l</code>.</p>
+      <p class="sudo-warning">Peut nécessiter des privilèges root si <code>username</code> est différent de l'utilisateur courant.</p>
+      <dl class="param-list">
+        <dt>username</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Nom de l'utilisateur. Si None, utilise l'utilisateur courant. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[List[str]]</span> - Liste des lignes de la crontab (y compris commentaires), ou None si erreur, ou liste vide si crontab vide.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_user_cron_job"><code>add_user_cron_job(job_line: str, username: Optional[str] = None, marker: Optional[str] = None, replace_existing: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute ou remplace une tâche dans la crontab d'un utilisateur via <code>crontab -</code>.</p>
+      <p class="sudo-warning">Peut nécessiter des privilèges root si <code>username</code> est différent de l'utilisateur courant.</p>
+      <dl class="param-list">
+        <dt>job_line</dt>
+        <dd><span class="param-type">(str)</span>: Ligne complète de la tâche cron à ajouter (ex: "* * * * * /usr/bin/command").</dd>
+        <dt>username</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Utilisateur cible. Défaut: utilisateur courant.</dd>
+        <dt>marker</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Marqueur unique pour identifier/remplacer cette tâche (commentaire préfixé par # MARKER:). Un ID basé sur hash est utilisé si None.</dd>
+        <dt>replace_existing</dt>
+        <dd><span class="param-type">(bool)</span>: Remplacer une tâche existante avec le même marqueur/ID. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'ajout/remplacement a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="remove_user_cron_job"><code>remove_user_cron_job(job_pattern: Optional[str] = None, marker: Optional[str] = None, username: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime une ou plusieurs tâches de la crontab d'un utilisateur via <code>crontab -</code>, en se basant sur un pattern ou un marqueur.</p>
+      <p class="sudo-warning">Peut nécessiter des privilèges root si <code>username</code> est différent de l'utilisateur courant.</p>
+      <dl class="param-list">
+        <dt>job_pattern</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Expression régulière pour identifier les lignes de tâche à supprimer. Utilisé si <code>marker</code> est None.</dd>
+        <dt>marker</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Marqueur unique (commentaire # MARKER:) pour identifier la tâche à supprimer.</dd>
+        <dt>username</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Utilisateur cible. Défaut: utilisateur courant.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si au moins une tâche a été supprimée ou si aucune ne correspondait. False en cas d'erreur.
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion /etc/cron.d</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="list_system_cron_d_files"><code>list_system_cron_d_files(log_levels: Optional[Dict[str, str]] = None) -> List[str]</code></h4>
+      <p class="description">Liste les fichiers dans <code>/etc/cron.d</code>.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[str]</span> - Liste des noms de fichiers.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="read_cron_d_file"><code>read_cron_d_file(filename: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[List[str]]</code></h4>
+      <p class="description">Lit le contenu d'un fichier dans <code>/etc/cron.d</code>.</p>
+      <p class="sudo-warning">Peut nécessiter des privilèges root pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>filename</dt>
+        <dd><span class="param-type">(str)</span>: Nom du fichier dans /etc/cron.d.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[List[str]]</span> - Liste des lignes du fichier ou None si erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_system_cron_d_job"><code>add_system_cron_d_job(job_line: str, filename: str, user: str = 'root', marker: Optional[str] = None, replace_existing: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute ou remplace une tâche dans un fichier <code>/etc/cron.d/</code>. Le nom de fichier doit respecter les conventions (alphanumérique, tirets, underscores).</p>
+      <p class="sudo-warning">Nécessite des privilèges root pour écrire dans /etc/cron.d.</p>
+      <dl class="param-list">
+        <dt>job_line</dt>
+        <dd><span class="param-type">(str)</span>: Ligne de tâche SANS l'utilisateur (ex: "* * * * * /path/to/script").</dd>
+        <dt>filename</dt>
+        <dd><span class="param-type">(str)</span>: Nom du fichier dans /etc/cron.d (ex: "my-task").</dd>
+        <dt>user</dt>
+        <dd><span class="param-type">(str)</span>: Utilisateur qui exécutera la tâche. Défaut: 'root'.</dd>
+        <dt>marker</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Marqueur unique pour identifier/remplacer.</dd>
+        <dt>replace_existing</dt>
+        <dd><span class="param-type">(bool)</span>: Remplacer si marqueur existant. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="remove_system_cron_d_job"><code>remove_system_cron_d_job(filename: str, job_pattern: Optional[str] = None, marker: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime une ou plusieurs tâches d'un fichier <code>/etc/cron.d/</code> en se basant sur un pattern ou un marqueur.</p>
+      <p class="sudo-warning">Nécessite des privilèges root pour modifier le fichier.</p>
+      <dl class="param-list">
+        <dt>filename</dt>
+        <dd><span class="param-type">(str)</span>: Nom du fichier dans /etc/cron.d.</dd>
+        <dt>job_pattern</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Expression régulière pour identifier les lignes de tâche à supprimer.</dd>
+        <dt>marker</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Marqueur unique (commentaire # MARKER:) pour identifier la tâche à supprimer (utilisé si job_pattern est None).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si tâche non trouvée. False si erreur.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

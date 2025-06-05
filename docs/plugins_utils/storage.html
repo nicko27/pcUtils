@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/storage.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/storage.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour obtenir des informations sur le stockage du système :
+      systèmes de fichiers, points de montage, et utilisation de l'espace disque.
+    </p>
+    <p class="dependency-warning">
+      Nécessite que les commandes <code>lsblk</code>, <code>findmnt</code>, et <code>df</code> soient installées et accessibles dans le PATH.
+      Certaines opérations peuvent nécessiter des privilèges root indirectement si l'utilisateur courant n'a pas les droits d'accès nécessaires aux périphériques ou informations système.
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#StorageCommands" class="toc-link">StorageCommands</a></li>
+        <li class="toc-item"><a href="#get_filesystem_info" class="toc-link">get_filesystem_info</a></li>
+        <li class="toc-item"><a href="#get_mount_info" class="toc-link">get_mount_info</a></li>
+        <li class="toc-item"><a href="#is_mounted" class="toc-link">is_mounted</a></li>
+        <li class="toc-item"><a href="#get_disk_usage" class="toc-link">get_disk_usage</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="StorageCommands"><code>StorageCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour récupérer des informations sur le stockage (systèmes de fichiers, points de montage, utilisation disque).
+        Hérite de PluginUtilsBase pour l'exécution de commandes et la journalisation.
+      </p>
+    </section>
+
+    <h2 class="section-title">Méthodes Principales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_filesystem_info"><code>get_filesystem_info(device: str, log_levels: Optional[Dict[str, str]] = None) -> Dict[str, str]</code></h4>
+      <p class="description">Récupère le type de système de fichiers (FSTYPE), l'UUID et le LABEL pour un périphérique bloc donné en utilisant <code>lsblk</code>.</p>
+      <dl class="param-list">
+        <dt>device</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du périphérique bloc (ex: <code>/dev/sda1</code>, <code>/dev/mapper/vg-lv</code>).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Dict[str, str]</span> - Un dictionnaire contenant les clés 'TYPE', 'UUID', 'LABEL' avec leurs valeurs respectives (chaînes vides si non trouvées), ou un dictionnaire vide en cas d'erreur majeure.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_mount_info"><code>get_mount_info(source_or_target: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> List[Dict[str, str]]</code></h4>
+      <p class="description">Récupère les informations de montage structurées via <code>findmnt</code> pour un périphérique/point de montage spécifique ou pour tous les systèmes de fichiers montés.</p>
+      <dl class="param-list">
+        <dt>source_or_target</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Le périphérique (ex: <code>/dev/sda1</code>) ou le point de montage (ex: <code>/home</code>) à interroger. Si None, liste tous les points de montage. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[Dict[str, str]]</span> - Une liste de dictionnaires, où chaque dictionnaire représente un point de montage trouvé et contient des clés comme 'TARGET', 'SOURCE', 'FSTYPE', 'OPTIONS'. Retourne une liste vide si rien n'est trouvé ou en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_mounted"><code>is_mounted(source_or_target: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie si un périphérique ou un point de montage est actuellement monté en utilisant <code>get_mount_info</code>.</p>
+      <dl class="param-list">
+        <dt>source_or_target</dt>
+        <dd><span class="param-type">(str)</span>: Le périphérique ou le point de montage à vérifier.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le périphérique/point de montage est trouvé dans la liste des montages, False sinon.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_disk_usage"><code>get_disk_usage(path: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> List[Dict[str, str]]</code></h4>
+      <p class="description">Récupère l'utilisation de l'espace disque via la commande <code>df</code>.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin optionnel d'un fichier ou d'un répertoire pour obtenir l'utilisation du système de fichiers sur lequel il réside. Si None, retourne l'utilisation de tous les systèmes de fichiers montés. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[Dict[str, str]]</span> - Une liste de dictionnaires, chaque dictionnaire représentant une ligne de sortie de <code>df</code> avec des clés normalisées (ex: 'source', 'fstype', 'size', 'used', 'avail', 'pcent', 'target'). Retourne une liste vide en cas d'erreur.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

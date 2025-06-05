@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/config_files.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/config_files.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour lire et écrire différents formats de fichiers de configuration
+      (INI, JSON, fichiers à blocs type Dovecot/Nginx) et manipuler des fichiers texte ligne par ligne.
+      Gère automatiquement l'utilisation de `sudo` si nécessaire pour lire/écrire les fichiers.
+    </p>
+    <p class="dependency-warning">
+      Utilise principalement les fonctionnalités natives de Python (`os`, `re`, `json`, `configparser`, `tempfile`, `shutil`, `pathlib`).
+      Nécessite la commande `cat`, `cp`, `chmod`, `chown`, `stat` (via `self.run`) si `sudo` est requis.
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#ConfigFileCommands" class="toc-link">ConfigFileCommands</a></li>
+        <li class="toc-item"><a href="#read_ini_file" class="toc-link">read_ini_file</a></li>
+        <li class="toc-item"><a href="#get_ini_value" class="toc-link">get_ini_value</a></li>
+        <li class="toc-item"><a href="#set_ini_value" class="toc-link">set_ini_value</a></li>
+        <li class="toc-item"><a href="#read_json_file" class="toc-link">read_json_file</a></li>
+        <li class="toc-item"><a href="#write_json_file" class="toc-link">write_json_file</a></li>
+        <li class="toc-item"><a href="#read_file_lines" class="toc-link">read_file_lines</a></li>
+        <li class="toc-item"><a href="#get_line_containing" class="toc-link">get_line_containing</a></li>
+        <li class="toc-item"><a href="#replace_line" class="toc-link">replace_line</a></li>
+        <li class="toc-item"><a href="#comment_line" class="toc-link">comment_line</a></li>
+        <li class="toc-item"><a href="#uncomment_line" class="toc-link">uncomment_line</a></li>
+        <li class="toc-item"><a href="#append_line" class="toc-link">append_line</a></li>
+        <li class="toc-item"><a href="#ensure_line_exists" class="toc-link">ensure_line_exists</a></li>
+        <li class="toc-item"><a href="#read_block_config_file" class="toc-link">read_block_config_file</a></li>
+        <li class="toc-item"><a href="#write_block_config_file" class="toc-link">write_block_config_file</a></li>
+        <li class="toc-item"><a href="#update_block_config" class="toc-link">update_block_config</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="ConfigFileCommands"><code>ConfigFileCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour lire et écrire des fichiers de configuration (INI, JSON, blocs) et manipuler des fichiers texte.
+        Hérite de PluginUtilsBase pour la journalisation et l'exécution de commandes (pour sudo).
+      </p>
+    </section>
+
+    <h2 class="section-title">Méthodes INI</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="read_ini_file"><code>read_ini_file(path: Union[str, Path], log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Dict[str, str]]]</code></h4>
+      <p class="description">Lit un fichier INI et le retourne sous forme de dictionnaire imbriqué. Tente un parsing manuel si `configparser` échoue.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier INI.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Dict[str, str]]]</span> - Structure INI parsée ou None en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_ini_value"><code>get_ini_value(path: Union[str, Path], section: str, key: str, default: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> Optional[str]</code></h4>
+      <p class="description">Récupère une valeur spécifique d'un fichier INI.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier INI.</dd>
+        <dt>section</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la section.</dd>
+        <dt>key</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la clé.</dd>
+        <dt>default</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Valeur par défaut si non trouvée. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[str]</span> - Valeur de la clé ou valeur par défaut.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_ini_value"><code>set_ini_value(path: Union[str, Path], section: str, key: str, value: Optional[str], create_section: bool = True, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit ou supprime une valeur dans un fichier INI.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier INI.</dd>
+        <dt>section</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la section.</dd>
+        <dt>key</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la clé.</dd>
+        <dt>value</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Nouvelle valeur ou None pour supprimer.</dd>
+        <dt>create_section</dt>
+        <dd><span class="param-type">(bool)</span>: Créer la section si elle n'existe pas. Défaut: True.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la modification réussit.
+      </div>
+    </section>
+
+    <h2 class="section-title">Méthodes JSON</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="read_json_file"><code>read_json_file(path: Union[str, Path], log_levels: Optional[Dict[str, str]] = None) -> Optional[Any]</code></h4>
+      <p class="description">Lit un fichier JSON et le retourne comme objet Python.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier JSON.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Any]</span> - Contenu JSON parsé ou None en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="write_json_file"><code>write_json_file(path: Union[str, Path], data: Any, indent: Optional[int] = 2, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Écrit un objet Python dans un fichier JSON.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier JSON.</dd>
+        <dt>data</dt>
+        <dd><span class="param-type">(Any)</span>: Données à écrire.</dd>
+        <dt>indent</dt>
+        <dd><span class="param-type">(Optional[int])</span>: Indentation (None pour minifier). Défaut: 2.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'écriture réussit.
+      </div>
+    </section>
+
+    <h2 class="section-title">Méthodes Fichiers Texte Génériques</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="read_file_lines"><code>read_file_lines(path: Union[str, Path], log_levels: Optional[Dict[str, str]] = None) -> Optional[List[str]]</code></h4>
+      <p class="description">Lit toutes les lignes d'un fichier texte.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[List[str]]</span> - Liste des lignes ou None en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_line_containing"><code>get_line_containing(path: Union[str, Path], pattern: str, first_match_only: bool = True, log_levels: Optional[Dict[str, str]] = None) -> Union[Optional[str], List[str], None]</code></h4>
+      <p class="description">Trouve la première ou toutes les lignes contenant un motif regex.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>pattern</dt>
+        <dd><span class="param-type">(str)</span>: Motif regex à rechercher.</dd>
+        <dt>first_match_only</dt>
+        <dd><span class="param-type">(bool)</span>: Renvoyer seulement la première correspondance. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Union[Optional[str], List[str], None]</span> - Ligne(s) correspondante(s) ou None.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="replace_line"><code>replace_line(path: Union[str, Path], pattern: str, new_line: str, replace_all: bool = False, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Remplace la première ou toutes les lignes correspondant à un motif regex.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>pattern</dt>
+        <dd><span class="param-type">(str)</span>: Motif regex à rechercher.</dd>
+        <dt>new_line</dt>
+        <dd><span class="param-type">(str)</span>: Nouvelle ligne de remplacement.</dd>
+        <dt>replace_all</dt>
+        <dd><span class="param-type">(bool)</span>: Remplacer toutes les occurrences. Défaut: False.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le remplacement réussit.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="comment_line"><code>comment_line(path: Union[str, Path], pattern: str, comment_char: str = '#', backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Commente les lignes correspondant à un motif regex.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>pattern</dt>
+        <dd><span class="param-type">(str)</span>: Motif regex à rechercher.</dd>
+        <dt>comment_char</dt>
+        <dd><span class="param-type">(str)</span>: Caractère de commentaire. Défaut: '#'.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le commentage réussit.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="uncomment_line"><code>uncomment_line(path: Union[str, Path], pattern: str, comment_char: str = '#', backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Décommente les lignes correspondant à un motif regex.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>pattern</dt>
+        <dd><span class="param-type">(str)</span>: Motif regex à rechercher dans le contenu décommenté.</dd>
+        <dt>comment_char</dt>
+        <dd><span class="param-type">(str)</span>: Caractère de commentaire à supprimer. Défaut: '#'.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le décommentage réussit.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="append_line"><code>append_line(path: Union[str, Path], line_to_append: str, ensure_newline: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute une ligne à la fin d'un fichier.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>line_to_append</dt>
+        <dd><span class="param-type">(str)</span>: Ligne à ajouter.</dd>
+        <dt>ensure_newline</dt>
+        <dd><span class="param-type">(bool)</span>: S'assurer que la ligne ajoutée termine par un saut de ligne. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'ajout réussit.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="ensure_line_exists"><code>ensure_line_exists(path: Union[str, Path], line_to_ensure: str, pattern_to_check: Optional[str] = None, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">S'assure qu'une ligne spécifique existe dans un fichier, l'ajoute sinon.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>line_to_ensure</dt>
+        <dd><span class="param-type">(str)</span>: Ligne exacte qui doit exister.</dd>
+        <dt>pattern_to_check</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Regex pour vérifier l'existence. Si None, utilise `line_to_ensure` littéralement.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la ligne existe ou a été ajoutée.
+      </div>
+    </section>
+
+    <h2 class="section-title">Méthodes Fichiers à Blocs (Type Dovecot/Nginx)</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="read_block_config_file"><code>read_block_config_file(path: Union[str, Path], log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict]</code></h4>
+      <p class="description">Lit un fichier de configuration utilisant une structure en blocs avec accolades (ex: Dovecot, Nginx).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict]</span> - Structure de configuration parsée ou None en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="write_block_config_file"><code>write_block_config_file(path: Union[str, Path], config: dict, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Écrit une structure de configuration en blocs dans un fichier.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>config</dt>
+        <dd><span class="param-type">(dict)</span>: Structure de configuration à écrire.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'écriture réussit.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="update_block_config"><code>update_block_config(path: Union[str, Path], key_path: str, value: Any, backup: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Met à jour une valeur dans un fichier de configuration à blocs.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour lire/écrire le fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin du fichier.</dd>
+        <dt>key_path</dt>
+        <dd><span class="param-type">(str)</span>: Chemin de la clé à mettre à jour (format 'section/sous-section/clé').</dd>
+        <dt>value</dt>
+        <dd><span class="param-type">(Any)</span>: Nouvelle valeur à définir.</dd>
+        <dt>backup</dt>
+        <dd><span class="param-type">(bool)</span>: Créer une sauvegarde. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la mise à jour réussit.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

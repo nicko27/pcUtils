@@ -1,0 +1,8 @@
+name: GIC
+description:
+variables:
+  printer_ip: 192
+  printer_model: KM251iC.yml
+  printer_name: BT
+  printer_a3: false
+  printer_all: true

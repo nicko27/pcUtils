@@ -1,0 +1,123 @@
+#config-container-list {
+    margin-left:2;
+    margin-right:2;
+    padding:0;
+    box-sizing: border-box;
+}
+
+
+#button-container-config {
+    dock: bottom;
+    height: 6;
+    padding-bottom:2;
+    padding-right:2;
+    border-top: heavy $primary;
+    box-sizing: border-box;
+    align: right middle;
+}
+
+#button-container-config-left{
+    margin-left:2;
+}
+
+#button-container-config-right{
+
+    align: right middle;
+}
+
+.hidden-label {
+    display: none;
+}
+
+.config-fields {
+    background: $panel;
+    margin-left: 2;
+    margin-right: 2;
+    padding: 1;
+    margin-bottom:1;
+    height: auto;
+}
+
+.checkbox-group-label {
+    height:3;
+    content-align: left middle;
+}
+
+.no-config {
+    width: 100%;
+    height: auto;
+    background: $panel;
+    height: auto;
+    background: $panel;
+    margin-bottom: 1;
+    padding-top: 1;
+    padding-bottom: 1
+}
+
+.no-config-content {
+    width: 100%;
+    align-horizontal: center;
+}
+
+.no-config-icon {
+    margin-right: 3;
+}
+
+.no-config-label {
+    text-style: italic;
+}
+
+.field-header {
+    padding-left: 1;
+}
+
+.config-title {
+    background: $panel;
+    text-align: center;
+    text-style: bold;
+    width: 100%;
+    padding-top: 1;
+    margin-left: 2;
+    margin-right: 2;
+}
+
+.config-description {
+    background: $panel;
+    margin-left: 2;
+    margin-right: 2;
+    width: 100%;
+    display: none;
+    height: 0;
+}
+
+.required-field {
+    color: $error;
+    text-style: bold;
+}
+
+.input-container,
+.select-container,
+.checkbox-container,
+.checkbox-group-container {
+    margin-bottom: 1;
+}
+
+.browse-button {
+    margin-left: 1;
+    margin-bottom: 1;
+}
+
+
+
+.template-label{
+    padding-left:1;
+}
+
+#ssh-container{
+    display:none;
+}
+
+.disabled-ssh-container{
+    visibility: hidden;
+    display: none;
+}

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/dependency_checker.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/dependency_checker.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour vérifier les dépendances et prérequis d'un plugin.
+      Vérifie la présence de commandes, paquets système (Debian/Ubuntu), modules Python,
+      fichiers et répertoires.
+    </p>
+    <p class="dependency-warning">
+      Nécessite la commande <code>which</code> (ou <code>command -v</code>) pour <code>check_command</code>.
+      Dépendance optionnelle sur <code>plugins_utils.apt</code> pour <code>check_package</code>.
+      Nécessite <code>dpkg</code> pour la comparaison de version dans <code>check_package</code>.
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#DependencyChecker" class="toc-link">DependencyChecker</a></li>
+        <li class="toc-item"><a href="#check_command" class="toc-link">check_command</a></li>
+        <li class="toc-item"><a href="#check_package" class="toc-link">check_package</a></li>
+        <li class="toc-item"><a href="#check_python_module" class="toc-link">check_python_module</a></li>
+        <li class="toc-item"><a href="#check_file_exists" class="toc-link">check_file_exists</a></li>
+        <li class="toc-item"><a href="#check_directory_exists" class="toc-link">check_directory_exists</a></li>
+        <li class="toc-item"><a href="#check_all" class="toc-link">check_all</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="DependencyChecker"><code>DependencyChecker(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour vérifier les prérequis d'exécution d'un plugin.
+        Hérite de PluginUtilsBase pour l'exécution de commandes et la journalisation.
+      </p>
+    </section>
+
+    <h2 class="section-title">Méthodes de Vérification</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="check_command"><code>check_command(command_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie si une commande externe est disponible dans le PATH via <code>which</code>.</p>
+      <dl class="param-list">
+        <dt>command_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom de la commande à vérifier.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la commande est trouvée.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="check_package"><code>check_package(package_name: str, min_version: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie si un paquet système (Debian/Ubuntu) est installé et satisfait optionnellement une version minimale. Utilise <code>AptCommands.is_installed</code> et <code>dpkg --compare-versions</code>.</p>
+      <p class="dependency-warning">Nécessite que le module <code>AptCommands</code> soit disponible.</p>
+      <dl class="param-list">
+        <dt>package_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paquet (ex: 'openssh-server').</dd>
+        <dt>min_version</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Version minimale requise (ex: '1:8.2p1-4'). Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le paquet est installé et satisfait la version minimale (si spécifiée).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="check_python_module"><code>check_python_module(module_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie si un module Python peut être importé via <code>importlib.util.find_spec</code>.</p>
+      <dl class="param-list">
+        <dt>module_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du module (ex: 'requests', 'ldap').</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le module est trouvable.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="check_file_exists"><code>check_file_exists(path: Union[str, Path], check_is_file: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie l'existence d'un fichier et optionnellement s'il s'agit bien d'un fichier.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin complet du fichier.</dd>
+        <dt>check_is_file</dt>
+        <dd><span class="param-type">(bool)</span>: Vérifier aussi que c'est un fichier et non un dossier. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le chemin existe (et est un fichier si <code>check_is_file=True</code>).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="check_directory_exists"><code>check_directory_exists(path: Union[str, Path], check_is_dir: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie l'existence d'un répertoire et optionnellement s'il s'agit bien d'un répertoire.</p>
+      <dl class="param-list">
+        <dt>path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin complet du répertoire.</dd>
+        <dt>check_is_dir</dt>
+        <dd><span class="param-type">(bool)</span>: Vérifier aussi que c'est un répertoire. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le chemin existe (et est un répertoire si <code>check_is_dir=True</code>).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="check_all"><code>check_all(commands: Optional[List[str]] = None, packages: Optional[Union[List[str], Dict[str, Optional[str]]]] = None, python_modules: Optional[List[str]] = None, files: Optional[List[str]] = None, directories: Optional[List[str]] = None, log_levels: Optional[Dict[str, str]] = None) -> Dict[str, Any]</code></h4>
+      <p class="description">Exécute une série de vérifications de dépendances et retourne un rapport détaillé.</p>
+      <dl class="param-list">
+        <dt>commands</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste de noms de commandes à vérifier.</dd>
+        <dt>packages</dt>
+        <dd><span class="param-type">(Optional[Union[List[str], Dict[str, Optional[str]]]])</span>: Liste de noms de paquets OU dictionnaire {nom_paquet: version_min}.</dd>
+        <dt>python_modules</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste de noms de modules Python.</dd>
+        <dt>files</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste de chemins de fichiers à vérifier.</dd>
+        <dt>directories</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste de chemins de répertoires à vérifier.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Dict[str, Any]</span> - Dictionnaire résumant les résultats avec les clés <code>overall_status</code> ('OK' ou 'MISSING_DEPENDENCIES'), <code>missing</code> (liste des éléments manquants par catégorie), et <code>details</code> (statut booléen pour chaque élément vérifié).
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

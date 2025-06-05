@@ -1,0 +1,8 @@
+name: Evreux BR
+description:
+variables:
+  printer_ip: 128.81.3.163
+  printer_model: KM227C.yml
+  printer_name: BR
+  printer_a3: false
+  printer_all: true

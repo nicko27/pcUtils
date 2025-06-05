@@ -1,0 +1,8 @@
+name: MOK
+description: "Installation du MOK si nécessaire"
+version: 1.0
+category: Système
+multiple: false
+remote_execution: false
+icon: 🛠️
+sudo: true

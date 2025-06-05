@@ -1,0 +1,17 @@
+title: Photocopieur Konica Minolta 361i
+nom: KM361i
+ppdFile: /usr/share/ppd/Gendarmerie-SOLIMP4/Konica_361i.ppd
+couleurs: '0'
+rectoverso: '1'
+agraffes: '0'
+a3: '1'
+orecto: -o KMDuplex=1Sided
+orectoverso: -o KMDuplex=2Sided
+onb: -o SelectColor=Grayscale
+ocouleurs: -o SelectColor=Color
+oagraffes: ''
+oa4: -o PageSize=A4
+oa3: -o PageSize=A3
+ocommun: -o Model=361i
+mode: ppd
+socket: ipp://

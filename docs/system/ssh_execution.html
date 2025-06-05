@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exécution SSH - pcUtils</title>
+    <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">&larr; Retour à l'accueil</a>
+            <h1>Exécution à Distance via SSH</h1>
+            <p class="subtitle">Fonctionnement détaillé de l'exécution des plugins sur des machines distantes.</p>
+        </header>
+
+        <section class="content-section">
+            <h2>Activation</h2>
+            <p>Pour qu'un plugin puisse être exécuté via SSH, deux conditions doivent être remplies :</p>
+            <ol>
+                <li>Le plugin doit déclarer son support dans son fichier <code>settings.yml</code> avec la clé :
+                    <pre><code>remote_execution: true</code></pre>
+                </li>
+                <li>L'utilisateur doit activer l'option "Activer l'exécution distante" pour ce plugin dans l'écran de configuration (<span class="class-name">PluginConfig</span>). Cette case à cocher n'apparaît que si <code>remote_execution: true</code> est défini.</li>
+            </ol>
+            <p>Lorsque l'exécution distante est activée pour au moins un plugin, la section de configuration SSH globale devient visible et active dans l'écran <span class="class-name">PluginConfig</span>.</p>
+             <span class="file-ref">[<code>config_screen/config_screen.py</code>, <code>config_screen/plugin_config_container.py</code>]</span>
+        </section>
+
+        <section class="content-section">
+            <h2>Configuration SSH</h2>
+            <p>La configuration nécessaire à l'exécution SSH provient de deux endroits :</p>
+            <ol>
+                <li><strong>Configuration Globale SSH</strong>: Définie par l'utilisateur dans l'interface (écran <span class="class-name">PluginConfig</span>). Les champs disponibles sont définis dans <code>ui/ssh_manager/ssh_fields.yml</code>. Ces informations (IPs cibles, utilisateur, mot de passe, options root, etc.) sont chargées par <span class="class-name">SSHConfigLoader</span> et utilisées par <span class="class-name">SSHExecutor</span>.</li>
+                <li><strong>Paramètres de Connexion Avancés</strong>: Définis dans <code>ui/ssh_manager/ssh_config.yml</code>. Ce fichier permet de personnaliser les timeouts, les tentatives de connexion, l'utilisation des clés SSH, etc. Il est également chargé par <span class="class-name">SSHConfigLoader</span>.</li>
+            </ol>
+            <p><strong>Gestion des Identifiants Root (sudo)</strong>:</p>
+            <ul>
+                <li>Par défaut (<span class="config-item">ssh_root_same: true</span> dans <code>ssh_fields.yml</code>), les mêmes identifiants (utilisateur/mot de passe) que ceux utilisés pour la connexion SSH sont utilisés pour les commandes <code>sudo</code> sur la machine distante.</li>
+                <li>Si <span class="config-item">ssh_root_same</span> est décoché, des champs séparés apparaissent pour spécifier un utilisateur et un mot de passe dédiés à <code>sudo</code>.</li>
+                <li><span class="class-name">RootCredentialsManager</span> gère la récupération et la mise en cache de ces identifiants pour les passer au script <code>ssh_wrapper.py</code>.</li>
+            </ul>
+             <span class="file-ref">[<code>ssh_manager/ssh_config_loader.py</code>, <code>ssh_manager/ssh_fields.yml</code>, <code>ssh_manager/ssh_config.yml</code>, <code>execution_screen/root_credentials_manager.py</code>]</span>
+        </section>
+
+        <section class="content-section">
+            <h2>Processus d'Exécution SSH (<code>SSHExecutor</code>)</h2>
+            <p>Lorsqu'un plugin est exécuté en mode distant, <span class="class-name">SSHExecutor</span> orchestre les étapes suivantes pour chaque machine cible :</p>
+            <ol>
+                <li><strong>Connexion SSH</strong>: Établit une connexion SSH en utilisant les identifiants fournis (utilisateur/mot de passe global SSH) et les paramètres de <code>ssh_config.yml</code> (via la bibliothèque Paramiko).</li>
+                <li><strong>Création du Répertoire Temporaire</strong>: Crée un répertoire temporaire unique sur la machine distante (ex: <code>/tmp/pcUtils_1678886400</code>). Le chemin de base peut être configuré dans <code>ssh_config.yml</code> (<span class="config-item">remote_temp_dir</span>).</li>
+                <li><strong>Copie des Fichiers (SFTP)</strong>:
+                    <ul>
+                        <li>Ouvre une session SFTP.</li>
+                        <li>Copie le contenu du dossier du plugin local vers le répertoire temporaire distant. Les fichiers listés dans <span class="config-item">excluded_files</span> (ou <span class="config-item">ssh_pattern_exceptions</span>) dans <code>settings.yml</code>, ainsi que <code>settings.yml</code> lui-même, sont ignorés.</li>
+                        <li>Si un dossier <code>plugins_utils</code> existe localement au même niveau que <code>plugins/</code>, son contenu est également copié dans un sous-dossier <code>plugins_utils</code> dans le répertoire temporaire distant.</li>
+                        <li>Copie le script <code>ui/execution_screen/ssh_wrapper.py</code> dans le répertoire temporaire distant.</li>
+                    </ul>
+                </li>
+                <li><strong>Préparation de la Configuration</strong>:
+                    <ul>
+                        <li>La configuration complète du plugin (incluant les valeurs des champs et le contenu des fichiers chargés par <code>files_content</code>) est sérialisée en JSON.</li>
+                        <li>Ce JSON est écrit dans un fichier <code>config.json</code> dans le répertoire temporaire distant.</li>
+                        <li>Un autre fichier JSON, <code>wrapper_config.json</code>, est créé. Il contient le chemin vers le script <code>exec.py</code> (ou <code>main.sh</code>) du plugin dans le dossier temporaire, un booléen indiquant si <code>sudo</code> est requis (<span class="config-item">needs_sudo</span> de <code>settings.yml</code>), et potentiellement d'autres informations pour le wrapper.</li>
+                    </ul>
+                </li>
+                <li><strong>Exécution du Wrapper</strong>:
+                    <ul>
+                        <li>Rend le script <code>ssh_wrapper.py</code> exécutable sur la machine distante (<code>chmod +x</code>).</li>
+                        <li>Exécute la commande suivante via SSH : <code>python3 /chemin/vers/temp/ssh_wrapper.py /chemin/vers/temp/wrapper_config.json</code>. Un PTY (pseudo-terminal) est souvent demandé (<code>get_pty=True</code>) pour améliorer la compatibilité avec les commandes interactives ou celles nécessitant un terminal.</li>
+                    </ul>
+                </li>
+                <li><strong>Exécution du Plugin (via `ssh_wrapper.py`)</strong>:
+                    <ul>
+                        <li>Le script <code>ssh_wrapper.py</code> s'exécute sur la machine distante.</li>
+                        <li>Il lit <code>wrapper_config.json</code> pour obtenir le chemin du script du plugin et savoir s'il faut utiliser <code>sudo</code>.</li>
+                        <li>Il configure l'environnement (chemins d'import pour <code>plugins_utils</code>, variable <code>SSH_EXECUTION=1</code>).</li>
+                        <li>Si <code>needs_sudo</code> est vrai, il récupère le mot de passe root (passé via la variable d'environnement <code>SUDO_PASSWORD</code> par <code>SSHExecutor</code> si disponible) et préfixe la commande d'exécution du plugin avec <code>sudo -S</code> (ou juste <code>sudo</code> si aucun mot de passe n'est fourni).</li>
+                        <li>Il lance le script <code>exec.py</code> du plugin (en lui passant le chemin vers <code>config.json</code> via <code>-c</code>) ou le script <code>main.sh</code> (en lui passant le nom et l'intensité).</li>
+                    </ul>
+                </li>
+                <li><strong>Capture de la Sortie</strong>: <span class="class-name">SSHExecutor</span> lit en continu `stdout` et `stderr` de la commande du wrapper. Chaque ligne est transmise à <span class="class-name">LoggerUtils</span> pour traitement et affichage dans l'UI. Les lignes JSON sont parsées pour extraire le niveau et le message.</li>
+                <li><strong>Gestion de la Fin</strong>: Attend la fin de l'exécution du wrapper, récupère le code de sortie.</li>
+                <li><strong>Nettoyage</strong>: Supprime le répertoire temporaire sur la machine distante si l'option <span class="config-item">cleanup_temp_files</span> est activée dans <code>ssh_config.yml</code>.</li>
+                <li><strong>Fermeture de la Connexion</strong>: Ferme la session SFTP et la connexion SSH.</li>
+            </ol>
+            <p>Le résultat (succès/échec et sortie principale) est retourné pour chaque machine cible.</p>
+             <span class="file-ref">[<code>execution_screen/ssh_executor.py</code>, <code>execution_screen/ssh_wrapper.py</code>, <code>execution_screen/root_credentials_manager.py</code>]</span>
+        </section>
+
+         <section class="content-section">
+            <h2>Gestion des Adresses IP Multiples</h2>
+            <p>Le champ <span class="config-item">ssh_ips</span> dans la configuration SSH globale (<code>ssh_fields.yml</code>) ou un champ similaire dans un plugin peut contenir :</p>
+            <ul>
+                <li>Une seule adresse IP.</li>
+                <li>Plusieurs adresses IP séparées par des virgules (<code>,</code>).</li>
+                <li>Des motifs avec wildcard (<code>*</code>), par exemple <code>192.168.1.*</code>.</li>
+                <li>Des plages (ex: <code>10.0.0.10-20</code>) ne sont <strong>pas</strong> directement supportées par `get_target_ips` mais pourraient être gérées par des scripts d'options dynamiques.</li>
+            </ul>
+            <p>La fonction <code>get_target_ips</code> (dans <code>ip_utils.py</code>) est utilisée par <span class="class-name">SSHExecutor</span> pour résoudre ces motifs et obtenir la liste finale des adresses IP cibles. Elle prend également en compte le champ <span class="config-item">ssh_exception_ips</span> pour exclure certaines adresses.</p>
+            <p>Pour chaque IP cible résultante, <span class="class-name">SSHExecutor</span> répète le processus d'exécution décrit ci-dessus.</p>
+            <p>Dans l'interface d'exécution (<span class="class-name">ExecutionWidget</span>), si un plugin est configuré pour s'exécuter sur plusieurs IPs via un motif, des <span class="class-name">PluginContainer</span> distincts sont créés dynamiquement, un pour chaque IP cible résolue, afin de suivre la progression individuellement. L'ID de ces conteneurs inclut l'adresse IP (ex: <code>plugin-mon_plugin_0_192_168_1_10</code>).</p>
+             <span class="file-ref">[<code>ssh_manager/ip_utils.py</code>, <code>execution_screen/ssh_executor.py</code>, <code>execution_screen/execution_widget.py</code>]</span>
+        </section>
+
+        <footer>
+            <p>Documentation pcUtils</p>
+        </footer>
+    </div>
+</body>
+</html>

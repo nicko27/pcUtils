@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/ldap.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/ldap.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour interagir avec des annuaires LDAP via les commandes système.
+      Utilise <code>ldapsearch</code>, <code>ldapadd</code>, <code>ldapmodify</code>, <code>ldapdelete</code>, <code>ldappasswd</code>.
+      Le parsing de la sortie LDIF peut être fragile comparé à une bibliothèque LDAP dédiée.
+    </p>
+    <p class="dependency-warning">
+      Nécessite que le paquet <strong><code>ldap-utils</code></strong> (ou équivalent) soit installé pour fournir les commandes <code>ldapsearch</code>, <code>ldapadd</code>, etc.
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#LdapCommands" class="toc-link">LdapCommands</a></li>
+        <li class="toc-item"><a href="#parse_ldif" class="toc-link">parse_ldif</a></li>
+        <li class="toc-item"><a href="#search" class="toc-link">search</a></li>
+        <li class="toc-item"><a href="#add" class="toc-link">add</a></li>
+        <li class="toc-item"><a href="#modify" class="toc-link">modify</a></li>
+        <li class="toc-item"><a href="#delete" class="toc-link">delete</a></li>
+        <li class="toc-item"><a href="#change_password" class="toc-link">change_password</a></li>
+        <li class="toc-item"><a href="#get_user" class="toc-link">get_user</a></li>
+        <li class="toc-item"><a href="#check_user_exists" class="toc-link">check_user_exists</a></li>
+        <li class="toc-item"><a href="#add_user_to_group" class="toc-link">add_user_to_group</a></li>
+        <li class="toc-item"><a href="#remove_user_from_group" class="toc-link">remove_user_from_group</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="LdapCommands"><code>LdapCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour interagir avec LDAP via les commandes <code>ldap-utils</code>.
+        Hérite de PluginUtilsBase pour l'exécution de commandes et la journalisation.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Méthodes Principales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="parse_ldif"><code>parse_ldif(ldif_output: str, log_levels: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]</code></h4>
+      <p class="description">
+        Parse une sortie LDIF multiligne (typiquement de <code>ldapsearch</code>) en une liste de dictionnaires.
+        Gère les attributs multivalués et les lignes continuées. Moins robuste qu'une vraie bibliothèque LDAP.
+      </p>
+      <dl class="param-list">
+        <dt>ldif_output</dt>
+        <dd><span class="param-type">(str)</span>: La sortie LDIF brute à parser.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[Dict[str, Any]]</span> - Liste de dictionnaires, chaque dictionnaire représentant une entrée LDIF avec ses attributs. Les attributs multivalués sont stockés sous forme de listes.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="search"><code>search(base_dn: str, scope: str = 'sub', filter_str: str = '(objectClass=*)', attributes: Optional[List[str]] = None, bind_dn: Optional[str] = None, password: Optional[str] = None, server: Optional[str] = None, port: int = 389, use_tls: bool = False, use_starttls: bool = False, timeout: int = 10) -> Tuple[bool, List[Dict[str, Any]]]</code></h4>
+      <p class="description">Effectue une recherche LDAP via la commande <code>ldapsearch</code>.</p>
+      <p class="sudo-warning">Normalement pas besoin de sudo, sauf si accès à des fichiers de configuration locaux (non utilisé ici).</p>
+      <dl class="param-list">
+        <dt>base_dn</dt>
+        <dd><span class="param-type">(str)</span>: DN de base pour la recherche.</dd>
+        <dt>scope</dt>
+        <dd><span class="param-type">(str)</span>: Étendue ('sub', 'base', 'one'). Défaut: 'sub'.</dd>
+        <dt>filter_str</dt>
+        <dd><span class="param-type">(str)</span>: Filtre LDAP (doit être correctement échappé par l'appelant si nécessaire). Défaut: '(objectClass=*)'.</dd>
+        <dt>attributes</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste des attributs à retourner (None pour tous). Défaut: None.</dd>
+        <dt>bind_dn</dt>
+        <dd><span class="param-type">(Optional[str])</span>: DN pour l'authentification simple. Défaut: None (anonyme).</dd>
+        <dt>password</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Mot de passe pour l'authentification simple (via <code>-w</code>, attention sécurité!). Défaut: None.</dd>
+        <dt>server</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Adresse du serveur LDAP. Défaut: None (utilise la conf locale).</dd>
+        <dt>port</dt>
+        <dd><span class="param-type">(int)</span>: Port du serveur LDAP. Défaut: 389.</dd>
+        <dt>use_tls</dt>
+        <dd><span class="param-type">(bool)</span>: Utiliser LDAPS (<code>ldaps://</code>). Défaut: False.</dd>
+        <dt>use_starttls</dt>
+        <dd><span class="param-type">(bool)</span>: Utiliser STARTTLS (<code>-ZZ</code>). Défaut: False.</dd>
+        <dt>timeout</dt>
+        <dd><span class="param-type">(int)</span>: Timeout pour la commande <code>ldapsearch</code> (<code>-l</code>). Défaut: 10.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Tuple[bool, List[Dict[str, Any]]]</span> - Un tuple contenant :
+        <ul>
+          <li><code>success</code> (bool): True si la commande a réussi (même si aucun résultat).</li>
+          <li><code>results</code> (List[Dict]): Liste des entrées trouvées, parsées par <code>parse_ldif</code>.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add"><code>add(ldif_content: str, **conn_kwargs) -> bool</code></h4>
+      <p class="description">Ajoute des entrées via <code>ldapadd</code> en utilisant du contenu LDIF.</p>
+      <p class="sudo-warning">Pas besoin de sudo.</p>
+      <dl class="param-list">
+        <dt>ldif_content</dt>
+        <dd><span class="param-type">(str)</span>: Chaîne contenant une ou plusieurs entrées au format LDIF.</dd>
+        <dt>**conn_kwargs</dt>
+        <dd>Arguments pour la connexion passés à <code>_run_ldap_modify_tool</code> (bind_dn, password, server, port, use_tls, use_starttls, continue_on_error, timeout).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="modify"><code>modify(ldif_content: str, **conn_kwargs) -> bool</code></h4>
+      <p class="description">Modifie des entrées via <code>ldapmodify</code> en utilisant du contenu LDIF.</p>
+      <p class="sudo-warning">Pas besoin de sudo.</p>
+      <dl class="param-list">
+        <dt>ldif_content</dt>
+        <dd><span class="param-type">(str)</span>: Chaîne contenant une ou plusieurs modifications au format LDIF.</dd>
+        <dt>**conn_kwargs</dt>
+        <dd>Arguments pour la connexion passés à <code>_run_ldap_modify_tool</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="delete"><code>delete(dn: str, recursive: bool = False, bind_dn: Optional[str] = None, password: Optional[str] = None, server: Optional[str] = None, port: int = 389, use_tls: bool = False, use_starttls: bool = False, continue_on_error: bool = False, timeout: int = 30) -> bool</code></h4>
+      <p class="description">Supprime une entrée LDAP via <code>ldapdelete</code>.</p>
+      <p class="sudo-warning">Pas besoin de sudo.</p>
+      <dl class="param-list">
+        <dt>dn</dt>
+        <dd><span class="param-type">(str)</span>: DN de l'entrée à supprimer.</dd>
+        <dt>recursive</dt>
+        <dd><span class="param-type">(bool)</span>: Tenter une suppression récursive (<code>-r</code>). Attention: dangereux. Défaut: False.</dd>
+        <dt>bind_dn -> timeout</dt>
+        <dd>Arguments de connexion et d'options (voir <code>search</code>).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si l'entrée n'existait pas.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="change_password"><code>change_password(user_dn: str, new_password: str, old_password: Optional[str] = None, bind_dn: Optional[str] = None, bind_password: Optional[str] = None, server: Optional[str] = None, port: int = 389, use_tls: bool = False, use_starttls: bool = False, timeout: int = 15) -> bool</code></h4>
+      <p class="description">Change le mot de passe d'un utilisateur LDAP via <code>ldappasswd</code>.</p>
+      <p class="sudo-warning">Pas besoin de sudo.</p>
+      <dl class="param-list">
+        <dt>user_dn</dt>
+        <dd><span class="param-type">(str)</span>: DN de l'utilisateur cible (<code>-S</code>).</dd>
+        <dt>new_password</dt>
+        <dd><span class="param-type">(str)</span>: Nouveau mot de passe en clair (<code>-s</code>).</dd>
+        <dt>old_password</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Ancien mot de passe en clair (<code>-a</code>, requis si non admin).</dd>
+        <dt>bind_dn</dt>
+        <dd><span class="param-type">(Optional[str])</span>: DN pour s'authentifier (<code>-D</code>, si None, utilise <code>user_dn</code>).</dd>
+        <dt>bind_password</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Mot de passe pour l'authentification (<code>-w</code>, requis).</dd>
+        <dt>server -> timeout</dt>
+        <dd>Arguments de connexion (voir <code>search</code>).</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <h2 class="section-title">Méthodes de Commodité</h2>
+
+     <section class="method-section">
+      <h4 class="method-title" id="get_user"><code>get_user(username: str, user_base_dn: str, user_attr: str = 'uid', attributes: Optional[List[str]] = None, **conn_kwargs) -> Optional[Dict[str, Any]]</code></h4>
+      <p class="description">Recherche un utilisateur par son nom d'utilisateur (ou autre attribut) et retourne ses informations.</p>
+      <p class="sudo-warning">Pas besoin de sudo.</p>
+      <dl class="param-list">
+        <dt>username</dt>
+        <dd><span class="param-type">(str)</span>: Nom d'utilisateur à rechercher.</dd>
+        <dt>user_base_dn</dt>
+        <dd><span class="param-type">(str)</span>: DN de base où chercher les utilisateurs.</dd>
+        <dt>user_attr</dt>
+        <dd><span class="param-type">(str)</span>: Attribut contenant le nom d'utilisateur. Défaut: 'uid'.</dd>
+        <dt>attributes</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Attributs à retourner. Défaut: None (tous).</dd>
+        <dt>**conn_kwargs</dt>
+        <dd>Arguments de connexion passés à <code>search</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Any]]</span> - Dictionnaire de la première entrée utilisateur trouvée, ou None.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="check_user_exists"><code>check_user_exists(username: str, user_base_dn: str, user_attr: str = 'uid', **conn_kwargs) -> bool</code></h4>
+      <p class="description">Vérifie si un utilisateur existe en cherchant son DN (plus rapide que de récupérer tous les attributs).</p>
+      <p class="sudo-warning">Pas besoin de sudo.</p>
+      <dl class="param-list">
+         <dt>username</dt>
+        <dd><span class="param-type">(str)</span>: Nom d'utilisateur à rechercher.</dd>
+        <dt>user_base_dn</dt>
+        <dd><span class="param-type">(str)</span>: DN de base où chercher les utilisateurs.</dd>
+        <dt>user_attr</dt>
+        <dd><span class="param-type">(str)</span>: Attribut contenant le nom d'utilisateur. Défaut: 'uid'.</dd>
+        <dt>**conn_kwargs</dt>
+        <dd>Arguments de connexion passés à <code>search</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'utilisateur existe.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_user_to_group"><code>add_user_to_group(user_dn: str, group_dn: str, member_attr: str = 'member', **conn_kwargs) -> bool</code></h4>
+      <p class="description">Ajoute un utilisateur (par son DN) à un groupe LDAP via <code>ldapmodify</code> en ajoutant l'attribut membre.</p>
+      <p class="sudo-warning">Pas besoin de sudo.</p>
+      <dl class="param-list">
+        <dt>user_dn</dt>
+        <dd><span class="param-type">(str)</span>: DN de l'utilisateur à ajouter.</dd>
+        <dt>group_dn</dt>
+        <dd><span class="param-type">(str)</span>: DN du groupe cible.</dd>
+        <dt>member_attr</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'attribut membre (ex: 'member', 'memberUid', 'uniqueMember'). Défaut: 'member'.</dd>
+        <dt>**conn_kwargs</dt>
+        <dd>Arguments de connexion passés à <code>modify</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès (même si l'utilisateur était déjà membre, grâce à <code>continue_on_error=True</code>).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="remove_user_from_group"><code>remove_user_from_group(user_dn: str, group_dn: str, member_attr: str = 'member', **conn_kwargs) -> bool</code></h4>
+      <p class="description">Supprime un utilisateur (par son DN) d'un groupe LDAP via <code>ldapmodify</code> en supprimant l'attribut membre.</p>
+      <p class="sudo-warning">Pas besoin de sudo.</p>
+      <dl class="param-list">
+        <dt>user_dn</dt>
+        <dd><span class="param-type">(str)</span>: DN de l'utilisateur à supprimer.</dd>
+        <dt>group_dn</dt>
+        <dd><span class="param-type">(str)</span>: DN du groupe cible.</dd>
+        <dt>member_attr</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'attribut membre. Défaut: 'member'.</dd>
+        <dt>**conn_kwargs</dt>
+        <dd>Arguments de connexion passés à <code>modify</code>.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès (même si l'utilisateur n'était pas membre, grâce à <code>continue_on_error=True</code>).
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

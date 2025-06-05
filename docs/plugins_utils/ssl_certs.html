@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/ssl_certs.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/ssl_certs.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour la gestion basique des certificats SSL/TLS.
+      Utilise la commande système <code>openssl</code> pour vérifier l'expiration, obtenir des informations, générer des certificats auto-signés et vérifier des chaînes de confiance.
+    </p>
+    <p class="dependency-warning">
+      Nécessite la commande <strong><code>openssl</code></strong>.
+    </p>
+    <p class="sudo-warning">La génération de clé/certificat peut nécessiter sudo selon l'emplacement des fichiers de sortie.</p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#SslCertCommands" class="toc-link">SslCertCommands</a></li>
+        <li class="toc-item"><a href="#check_cert_expiry" class="toc-link">check_cert_expiry</a></li>
+        <li class="toc-item"><a href="#get_cert_info" class="toc-link">get_cert_info</a></li>
+        <li class="toc-item"><a href="#generate_self_signed_cert" class="toc-link">generate_self_signed_cert</a></li>
+        <li class="toc-item"><a href="#verify_cert_chain" class="toc-link">verify_cert_chain</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="SslCertCommands"><code>SslCertCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour effectuer des opérations basiques sur les certificats SSL/TLS via <code>openssl</code>.
+        Hérite de PluginUtilsBase pour l'exécution de commandes.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Méthodes Principales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="check_cert_expiry"><code>check_cert_expiry(cert_path: Optional[Union[str, Path]] = None, host: Optional[str] = None, port: int = 443, days_warning: int = 30, log_levels: Optional[Dict[str, str]] = None) -> Tuple[str, Optional[datetime], Optional[int]]</code></h4>
+      <p class="description">Vérifie la date d'expiration d'un certificat SSL/TLS (local ou distant) via <code>openssl x509 -enddate</code> ou <code>openssl s_client</code>.</p>
+      <dl class="param-list">
+        <dt>cert_path</dt>
+        <dd><span class="param-type">(Optional[Union[str, Path]])</span>: Chemin vers le fichier certificat local (PEM). Défaut: None.</dd>
+        <dt>host</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Nom d'hôte ou IP du serveur distant (utilisé si <code>cert_path</code> est None). Défaut: None.</dd>
+        <dt>port</dt>
+        <dd><span class="param-type">(int)</span>: Port du serveur distant. Défaut: 443.</dd>
+        <dt>days_warning</dt>
+        <dd><span class="param-type">(int)</span>: Seuil en jours avant expiration pour déclencher un statut 'WARNING'. Défaut: 30.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Tuple[str, Optional[datetime], Optional[int]]</span> - Un tuple contenant :
+        <ul>
+            <li><code>status</code> (str): 'OK', 'WARNING', 'EXPIRED', 'ERROR', 'NOT_FOUND'.</li>
+            <li><code>expiry_date</code> (Optional[datetime]): Date d'expiration (objet datetime conscient du fuseau UTC) ou None.</li>
+            <li><code>days_left</code> (Optional[int]): Nombre de jours restants (peut être négatif si expiré) ou None.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_cert_info"><code>get_cert_info(cert_path: Optional[Union[str, Path]] = None, host: Optional[str] = None, port: int = 443, log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]</code></h4>
+      <p class="description">Récupère les informations détaillées d'un certificat (Sujet, Issuer, Dates, Serial, Fingerprint) via <code>openssl x509</code> ou <code>openssl s_client</code>.</p>
+      <dl class="param-list">
+        <dt>cert_path</dt>
+        <dd><span class="param-type">(Optional[Union[str, Path]])</span>: Chemin vers le fichier certificat local (PEM). Défaut: None.</dd>
+        <dt>host</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Nom d'hôte ou IP du serveur distant (utilisé si <code>cert_path</code> est None). Défaut: None.</dd>
+        <dt>port</dt>
+        <dd><span class="param-type">(int)</span>: Port du serveur distant. Défaut: 443.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Any]]</span> - Dictionnaire contenant les informations parsées du certificat (subject, issuer sous forme de dict, notbefore, notafter en datetime UTC, serial, fingerprint_sha256) ou None si erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="generate_self_signed_cert"><code>generate_self_signed_cert(key_path: Union[str, Path], cert_path: Union[str, Path], days: int = 365, common_name: str = 'localhost', bits: int = 2048, key_type: str = 'rsa', overwrite: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Génère une clé privée (via <code>openssl genpkey</code>) et un certificat auto-signé simple (via <code>openssl req -x509</code>).</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour écrire la clé et le certificat selon l'emplacement.</p>
+      <dl class="param-list">
+        <dt>key_path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin pour enregistrer la clé privée.</dd>
+        <dt>cert_path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin pour enregistrer le certificat.</dd>
+        <dt>days</dt>
+        <dd><span class="param-type">(int)</span>: Durée de validité du certificat en jours. Défaut: 365.</dd>
+        <dt>common_name</dt>
+        <dd><span class="param-type">(str)</span>: CN (Common Name) à utiliser dans le sujet. Défaut: 'localhost'.</dd>
+        <dt>bits</dt>
+        <dd><span class="param-type">(int)</span>: Taille de la clé RSA (si <code>key_type='rsa'</code>). Défaut: 2048.</dd>
+        <dt>key_type</dt>
+        <dd><span class="param-type">(str)</span>: Type de clé ('rsa' ou 'ec'). Défaut: 'rsa'.</dd>
+        <dt>overwrite</dt>
+        <dd><span class="param-type">(bool)</span>: Écraser les fichiers existants. Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la génération de la clé et du certificat réussit.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="verify_cert_chain"><code>verify_cert_chain(cert_path: Union[str, Path], ca_bundle_path: Union[str, Path], log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie si un certificat est signé par une autorité présente dans un bundle CA via <code>openssl verify -CAfile ...</code>.</p>
+      <dl class="param-list">
+        <dt>cert_path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin vers le certificat à vérifier.</dd>
+        <dt>ca_bundle_path</dt>
+        <dd><span class="param-type">(Union[str, Path])</span>: Chemin vers le fichier contenant les certificats CA de confiance (concaténés au format PEM).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la vérification réussit (code retour 0 et sortie contenant "OK").
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

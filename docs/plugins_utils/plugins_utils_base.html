@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/plugins_utils_base.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/plugins_utils_base.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire de base pour les plugins.
+      Fournit une classe de base avec des fonctionnalités communes de journalisation (via <code>PluginLogger</code>),
+      d'exécution de commandes système (avec gestion de <code>sudo</code>) et de gestion de la progression des tâches.
+      Inclut des optimisations pour l'affichage en temps réel et la détection de progression.
+    </p>
+    <p class="dependency-warning">
+      Nécessite les modules Python standard : <code>os</code>, <code>subprocess</code>, <code>traceback</code>, <code>time</code>, <code>threading</code>, <code>shlex</code>, <code>re</code>, <code>queue</code>, <code>select</code>, <code>sys</code>, <code>asyncio</code>.
+      Dépend de <code>plugins_utils.plugin_logger</code>.
+      Nécessite potentiellement la commande <code>sudo</code> si des opérations avec privilèges sont exécutées et que l'utilisateur n'est pas root.
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#PluginsUtilsBase" class="toc-link">PluginsUtilsBase</a></li>
+        <li class="toc-item"><a href="#__init__" class="toc-link">__init__</a></li>
+        <li class="toc-item"><a href="#log_info" class="toc-link">log_info</a></li>
+        <li class="toc-item"><a href="#log_warning" class="toc-link">log_warning</a></li>
+        <li class="toc-item"><a href="#log_error" class="toc-link">log_error</a></li>
+        <li class="toc-item"><a href="#log_debug" class="toc-link">log_debug</a></li>
+        <li class="toc-item"><a href="#log_success" class="toc-link">log_success</a></li>
+        <li class="toc-item"><a href="#start_task" class="toc-link">start_task</a></li>
+        <li class="toc-item"><a href="#update_task" class="toc-link">update_task</a></li>
+        <li class="toc-item"><a href="#complete_task" class="toc-link">complete_task</a></li>
+        <li class="toc-item"><a href="#enable_visual_bars" class="toc-link">enable_visual_bars</a></li>
+        <li class="toc-item"><a href="#run" class="toc-link">run</a></li>
+        <li class="toc-item"><a href="#run_async" class="toc-link">run_async</a></li>
+        <li class="toc-item"><a href="#get_running_commands" class="toc-link">get_running_commands</a></li>
+        <li class="toc-item"><a href="#is_command_running" class="toc-link">is_command_running</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="PluginsUtilsBase"><code>PluginsUtilsBase</code></h3>
+      <p class="description">
+        Classe de base pour les utilitaires de plugins. Fournit la journalisation,
+        l'exécution de commandes et la gestion de la progression.
+        Assume par défaut que les commandes nécessitant des privilèges élevés
+        seront exécutées en tant que root (via sudo si nécessaire).
+      </p>
+    </section>
+
+    <h2 class="section-title">Méthodes Principales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="__init__"><code>__init__(self, logger: Optional[PluginLogger] = None, target_ip: Optional[str] = None, debug_mode: bool = False, debugger_mode: bool = None)</code></h4>
+      <p class="description">Initialise un utilitaire de base pour les plugins.</p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Instance de <code>PluginLogger</code> à utiliser. Si None, une nouvelle instance est créée.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: Adresse IP cible pour les logs (utile pour SSH).</dd>
+          <dt>debug_mode</dt>
+          <dd><span class="param-type">(bool)</span>: Mode debug avec plus de verbosité. Défaut: False.</dd>
+          <dt>debugger_mode</dt>
+          <dd><span class="param-type">(Optional[bool])</span>: Mode spécial pour éviter les blocages du débogueur. Auto-détecté si None. Défaut: None.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="log_info"><code>log_info(self, msg: str, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Enregistre un message d'information via le logger interne.</p>
+      <dl class="param-list">
+        <dt>msg</dt><dd><span class="param-type">(str)</span>: Le message.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: (Ignoré ici, géré par le logger).</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="log_warning"><code>log_warning(self, msg: str, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Enregistre un message d'avertissement via le logger interne.</p>
+       <dl class="param-list">
+        <dt>msg</dt><dd><span class="param-type">(str)</span>: Le message.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: (Ignoré ici, géré par le logger).</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="log_error"><code>log_error(self, msg: str, exc_info: bool = False, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Enregistre un message d'erreur via le logger interne. Peut inclure le traceback.</p>
+       <dl class="param-list">
+        <dt>msg</dt><dd><span class="param-type">(str)</span>: Le message.</dd>
+        <dt>exc_info</dt><dd><span class="param-type">(bool)</span>: Inclure le traceback de l'exception actuelle. Défaut: False.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: (Ignoré ici, géré par le logger).</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="log_debug"><code>log_debug(self, msg: str, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Enregistre un message de débogage via le logger interne (si activé).</p>
+       <dl class="param-list">
+        <dt>msg</dt><dd><span class="param-type">(str)</span>: Le message.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: (Ignoré ici, géré par le logger).</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="log_success"><code>log_success(self, msg: str, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Enregistre un message de succès via le logger interne.</p>
+       <dl class="param-list">
+        <dt>msg</dt><dd><span class="param-type">(str)</span>: Le message.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: (Ignoré ici, géré par le logger).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Gestion de Progression</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="start_task"><code>start_task(self, total_steps: int, description: str = "", task_id: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Démarre une nouvelle tâche avec un nombre défini d'étapes pour le suivi de progression (numérique et/ou visuel).</p>
+      <dl class="param-list">
+        <dt>total_steps</dt><dd><span class="param-type">(int)</span>: Nombre total d'étapes (minimum 1).</dd>
+        <dt>description</dt><dd><span class="param-type">(str)</span>: Description de la tâche (utilisée pour la barre visuelle). Défaut: "".</dd>
+        <dt>task_id</dt><dd><span class="param-type">(Optional[str])</span>: Identifiant unique pour la tâche. Auto-généré si None.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="update_task"><code>update_task(self, advance: int = 1, description: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Met à jour la progression de la tâche en cours, en avançant d'un certain nombre d'étapes.</p>
+      <dl class="param-list">
+        <dt>advance</dt><dd><span class="param-type">(int)</span>: Nombre d'étapes à avancer. Défaut: 1.</dd>
+        <dt>description</dt><dd><span class="param-type">(Optional[str])</span>: Nouvelle description/texte à afficher pour cette étape (barre visuelle). Défaut: None.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="complete_task"><code>complete_task(self, success: bool = True, message: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Marque la tâche en cours comme terminée (100%) et supprime la barre de progression visuelle.</p>
+      <dl class="param-list">
+        <dt>success</dt><dd><span class="param-type">(bool)</span>: Indique si la tâche s'est terminée avec succès (affecte la couleur de la barre visuelle). Défaut: True.</dd>
+        <dt>message</dt><dd><span class="param-type">(Optional[str])</span>: Message final à afficher. Défaut: "Terminé" ou "Échec".</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="enable_visual_bars"><code>enable_visual_bars(self, enable: bool = True, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Active ou désactive l'utilisation des barres de progression visuelles (affecte <code>start_task</code>, <code>update_task</code>, <code>complete_task</code>).</p>
+      <dl class="param-list">
+        <dt>enable</dt><dd><span class="param-type">(bool)</span>: True pour activer, False pour désactiver. Défaut: True.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Exécution de Commandes</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="run"><code>run(self, cmd: Union[str, List[str]], input_data: Optional[str] = None, no_output: bool = False, print_command: bool = False, real_time_output: bool = True, error_as_warning: bool = False, timeout: Optional[int] = DEFAULT_COMMAND_TIMEOUT, check: bool = False, shell: bool = False, cwd: Optional[str] = None, env: Optional[Dict[str, str]] = None, needs_sudo: Optional[bool] = None, show_progress: bool = True, log_levels: Optional[Dict[str, str]] = None) -> Tuple[bool, str, str]</code></h4>
+      <p class="description">
+        Exécute une commande système de manière synchrone, en gérant sudo, l'input, les sorties en temps réel (optimisé), le timeout, et la détection de progression.
+      </p>
+      <p class="sudo-warning">Utilise <code>sudo -S</code> si <code>needs_sudo</code> est True (ou None et non root). Le mot de passe doit être dans <code>os.environ["SUDO_PASSWORD"]</code>.</p>
+      <dl class="param-list">
+        <dt>cmd</dt><dd><span class="param-type">(Union[str, List[str]])</span>: Commande à exécuter.</dd>
+        <dt>input_data</dt><dd><span class="param-type">(Optional[str])</span>: Données pour stdin.</dd>
+        <dt>no_output</dt><dd><span class="param-type">(bool)</span>: Ne pas logguer stdout/stderr. Défaut: False.</dd>
+        <dt>print_command</dt><dd><span class="param-type">(bool)</span>: Logguer la commande avant exécution. Défaut: False.</dd>
+        <dt>real_time_output</dt><dd><span class="param-type">(bool)</span>: Afficher la sortie en temps réel (traitement par lots optimisé). Désactivé en mode débogueur. Défaut: True.</dd>
+        <dt>error_as_warning</dt><dd><span class="param-type">(bool)</span>: Traiter stderr comme warning au lieu d'erreur. Défaut: False.</dd>
+        <dt>timeout</dt><dd><span class="param-type">(Optional[int])</span>: Timeout en secondes. Défaut: 300.</dd>
+        <dt>check</dt><dd><span class="param-type">(bool)</span>: Lever une exception si la commande échoue. Défaut: False.</dd>
+        <dt>shell</dt><dd><span class="param-type">(bool)</span>: Exécuter via le shell (attention sécurité). Défaut: False.</dd>
+        <dt>cwd</dt><dd><span class="param-type">(Optional[str])</span>: Répertoire de travail.</dd>
+        <dt>env</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Variables d'environnement (remplace l'env courant).</dd>
+        <dt>needs_sudo</dt><dd><span class="param-type">(Optional[bool])</span>: Forcer (True) ou interdire (False) sudo, ou auto-détecter (None). Défaut: None.</dd>
+        <dt>show_progress</dt><dd><span class="param-type">(bool)</span>: Détecter et afficher les barres de progression dans la sortie. Défaut: True.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Tuple[bool, str, str]</span> - Un tuple (succès booléen, stdout complet, stderr complet).
+      </div>
+      <p><strong>Lève :</strong> <code>subprocess.CalledProcessError</code> (si check=True et échec), <code>subprocess.TimeoutExpired</code>, <code>FileNotFoundError</code>, <code>PermissionError</code>.</p>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="run_async"><code>async run_async(self, cmd: Union[str, List[str]], ..., log_levels: Optional[Dict[str, str]] = None) -> Tuple[bool, str, str]</code></h4>
+      <p class="description">
+        Version asynchrone de <code>run()</code> pour être utilisée dans des contextes asyncio.
+        Exécute la commande dans un thread séparé pour ne pas bloquer la boucle d'événements.
+        Les arguments sont les mêmes que pour <code>run()</code>.
+      </p>
+      <p class="sudo-warning">Gère sudo de la même manière que <code>run()</code>.</p>
+      <dl class="param-list">
+         <dt>cmd -> show_progress</dt><dd>Voir les arguments de <code>run()</code>.</dd>
+         <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Tuple[bool, str, str]</span> - Un tuple (succès booléen, stdout complet, stderr complet) une fois la commande terminée.
+      </div>
+       <p><strong>Lève :</strong> Peut lever des exceptions si l'exécution dans le thread échoue (transmises via le résultat).</p>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_running_commands"><code>get_running_commands(self, log_levels: Optional[Dict[str, str]] = None) -> List[str]</code></h4>
+      <p class="description">Retourne la liste des commandes actuellement suivies comme étant en cours d'exécution (utile pour le débogage).</p>
+       <dl class="param-list">
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[str]</span> - Liste des chaînes de commandes en cours.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_command_running"><code>is_command_running(self, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie si des commandes (synchrones ou asynchrones lancées par cette instance) sont actuellement suivies comme étant en cours d'exécution.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si au moins une commande est en cours.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

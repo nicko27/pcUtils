@@ -1,0 +1,8 @@
+name: Fleury
+description:
+variables:
+  printer_ip: 150.27.51.220
+  printer_model: KM250iC.yml
+  printer_name: BT
+  printer_a3: false
+  printer_all: true

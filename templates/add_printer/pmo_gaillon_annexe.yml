@@ -1,0 +1,8 @@
+name: Gaillon PMO Annexe
+description:
+variables:
+  printer_ip: 150.27.40.221
+  printer_model: KM301i.yml
+  printer_name: ANNEXE
+  printer_a3: false
+  printer_all: true

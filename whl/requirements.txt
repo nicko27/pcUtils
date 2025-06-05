@@ -1,0 +1,6 @@
+textual
+paramiko
+pycups
+dnspython
+ruamel.yaml
+psutils

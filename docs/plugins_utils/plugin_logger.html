@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/plugin_logger.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/plugin_logger.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour les logs standardisés en format JSONL ou texte standard.
+      Supporte plusieurs barres de progression (numériques et visuelles) avec styles personnalisables.
+      Optimisé pour l'affichage en temps réel via un thread de traitement et une file d'attente.
+      Gère la détection du mode débogueur pour un comportement adapté.
+    </p>
+    <p class="dependency-warning">
+      Utilise les modules Python standard : <code>os</code>, <code>logging</code>, <code>time</code>, <code>tempfile</code>, <code>json</code>, <code>sys</code>, <code>queue</code>, <code>threading</code>, <code>traceback</code>, <code>shlex</code>, <code>datetime</code>, <code>pathlib</code>, <code>collections.deque</code>.
+    </p>
+     <p class="sudo-warning">Peut nécessiter des privilèges root pour créer/écrire dans le répertoire de logs système si l'utilisateur courant n'a pas les droits.</p>
+
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#PluginLogger" class="toc-link">PluginLogger</a></li>
+        <li class="toc-item"><a href="#init_logs" class="toc-link">init_logs</a></li>
+        <li class="toc-item"><a href="#info" class="toc-link">info</a></li>
+        <li class="toc-item"><a href="#warning" class="toc-link">warning</a></li>
+        <li class="toc-item"><a href="#error" class="toc-link">error</a></li>
+        <li class="toc-item"><a href="#success" class="toc-link">success</a></li>
+        <li class="toc-item"><a href="#debug" class="toc-link">debug</a></li>
+        <li class="toc-item"><a href="#start" class="toc-link">start</a></li>
+        <li class="toc-item"><a href="#end" class="toc-link">end</a></li>
+        <li class="toc-item"><a href="#set_total_steps" class="toc-link">set_total_steps</a> (Numérique)</li>
+        <li class="toc-item"><a href="#next_step" class="toc-link">next_step</a> (Numérique)</li>
+        <li class="toc-item"><a href="#enable_visual_bars" class="toc-link">enable_visual_bars</a></li>
+        <li class="toc-item"><a href="#create_bar" class="toc-link">create_bar</a> (Visuelle)</li>
+        <li class="toc-item"><a href="#update_bar" class="toc-link">update_bar</a> (Visuelle)</li>
+        <li class="toc-item"><a href="#next_bar" class="toc-link">next_bar</a> (Visuelle)</li>
+        <li class="toc-item"><a href="#delete_bar" class="toc-link">delete_bar</a> (Visuelle)</li>
+        <li class="toc-item"><a href="#set_default_bar_style" class="toc-link">set_default_bar_style</a></li>
+        <li class="toc-item"><a href="#set_default_bar_width" class="toc-link">set_default_bar_width</a></li>
+        <li class="toc-item"><a href="#flush" class="toc-link">flush</a></li>
+        <li class="toc-item"><a href="#shutdown" class="toc-link">shutdown</a></li>
+        <li class="toc-item"><a href="#__del__" class="toc-link">__del__</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="PluginLogger"><code>PluginLogger</code></h3>
+      <p class="description">
+        Gère la journalisation standardisée (JSONL ou texte ANSI) et les barres de progression
+        pour les plugins, avec optimisations pour l'affichage en temps réel via un thread dédié.
+      </p>
+      <div class="method-signature">
+        <pre><code>__init__(
+    plugin_name: Optional[str] = None,
+    instance_id: Optional[Union[str, int]] = None,
+    text_mode: bool = False,
+    debug_mode: bool = False,
+    ssh_mode: bool = False,
+    debugger_mode: Optional[bool] = None,
+    bar_width: int = 20
+)</code></pre>
+      </div>
+       <dl class="param-list">
+          <dt>plugin_name</dt>
+          <dd><span class="param-type">(Optional[str])</span>: Nom du plugin (utilisé dans les logs).</dd>
+          <dt>instance_id</dt>
+          <dd><span class="param-type">(Optional[Union[str, int]])</span>: ID d'instance (utilisé dans les logs).</dd>
+          <dt>text_mode</dt>
+          <dd><span class="param-type">(bool)</span>: Afficher du texte formaté ANSI au lieu de JSONL sur stdout. Détecté automatiquement si TTY et non SSH/Textual. Défaut: False.</dd>
+          <dt>debug_mode</dt>
+          <dd><span class="param-type">(bool)</span>: Activer les logs de niveau DEBUG. Défaut: False.</dd>
+          <dt>ssh_mode</dt>
+          <dd><span class="param-type">(bool)</span>: Mode spécial pour l'exécution SSH (affecte la détection du mode texte et l'emplacement des logs). Défaut: False.</dd>
+          <dt>debugger_mode</dt>
+          <dd><span class="param-type">(Optional[bool])</span>: Force le mode débogueur (traitement synchrone). Détecté automatiquement si None. Défaut: None.</dd>
+          <dt>bar_width</dt>
+          <dd><span class="param-type">(int)</span>: Largeur par défaut des barres de progression visuelles. Défaut: 20.</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Méthodes de Logging</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="init_logs"><code>init_logs(self, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Initialise le chemin du fichier log basé sur l'environnement (<code>PCUTILS_LOG_DIR</code>), le mode SSH, ou un chemin par défaut. Crée le répertoire si nécessaire.</p>
+      <p class="sudo-warning">Peut nécessiter sudo pour créer/écrire dans le répertoire de logs système.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log (non utilisé directement ici).</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="info"><code>info(self, message: str, target_ip: Optional[str] = None, force_flush: bool = False, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Enregistre un message d'information.</p>
+       <dl class="param-list">
+        <dt>message</dt><dd><span class="param-type">(str)</span>: Le message.</dd>
+        <dt>target_ip</dt><dd><span class="param-type">(Optional[str])</span>: IP cible pour SSH.</dd>
+        <dt>force_flush</dt><dd><span class="param-type">(bool)</span>: Force l'écriture immédiate.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="warning"><code>warning(self, message: str, target_ip: Optional[str] = None, force_flush: bool = False, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Enregistre un message d'avertissement.</p>
+       <dl class="param-list">
+        <dt>message</dt><dd><span class="param-type">(str)</span>: Le message.</dd>
+        <dt>target_ip</dt><dd><span class="param-type">(Optional[str])</span>: IP cible pour SSH.</dd>
+        <dt>force_flush</dt><dd><span class="param-type">(bool)</span>: Force l'écriture immédiate.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="error"><code>error(self, message: str, target_ip: Optional[str] = None, force_flush: bool = False, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Enregistre un message d'erreur.</p>
+      <dl class="param-list">
+        <dt>message</dt><dd><span class="param-type">(str)</span>: Le message.</dd>
+        <dt>target_ip</dt><dd><span class="param-type">(Optional[str])</span>: IP cible pour SSH.</dd>
+        <dt>force_flush</dt><dd><span class="param-type">(bool)</span>: Force l'écriture immédiate.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="success"><code>success(self, message: str, target_ip: Optional[str] = None, force_flush: bool = False, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Enregistre un message de succès.</p>
+       <dl class="param-list">
+        <dt>message</dt><dd><span class="param-type">(str)</span>: Le message.</dd>
+        <dt>target_ip</dt><dd><span class="param-type">(Optional[str])</span>: IP cible pour SSH.</dd>
+        <dt>force_flush</dt><dd><span class="param-type">(bool)</span>: Force l'écriture immédiate.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="debug"><code>debug(self, message: str, target_ip: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Enregistre un message de débogage (uniquement si <code>debug_mode=True</code> est activé à l'initialisation).</p>
+       <dl class="param-list">
+        <dt>message</dt><dd><span class="param-type">(str)</span>: Le message.</dd>
+        <dt>target_ip</dt><dd><span class="param-type">(Optional[str])</span>: IP cible pour SSH.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="start"><code>start(self, message: str, target_ip: Optional[str] = None, force_flush: bool = False, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Enregistre un message de début d'opération.</p>
+       <dl class="param-list">
+        <dt>message</dt><dd><span class="param-type">(str)</span>: Le message.</dd>
+        <dt>target_ip</dt><dd><span class="param-type">(Optional[str])</span>: IP cible pour SSH.</dd>
+        <dt>force_flush</dt><dd><span class="param-type">(bool)</span>: Force l'écriture immédiate.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="end"><code>end(self, message: str, target_ip: Optional[str] = None, force_flush: bool = False, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Enregistre un message de fin d'opération.</p>
+      <dl class="param-list">
+        <dt>message</dt><dd><span class="param-type">(str)</span>: Le message.</dd>
+        <dt>target_ip</dt><dd><span class="param-type">(Optional[str])</span>: IP cible pour SSH.</dd>
+        <dt>force_flush</dt><dd><span class="param-type">(bool)</span>: Force l'écriture immédiate.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Gestion Progression Numérique (JSONL)</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_total_steps"><code>set_total_steps(self, total: int, pb_id: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Définit le nombre total d'étapes pour une progression numérique (utilisée en mode JSONL).</p>
+      <dl class="param-list">
+        <dt>total</dt><dd><span class="param-type">(int)</span>: Nombre total d'étapes (minimum 1).</dd>
+        <dt>pb_id</dt><dd><span class="param-type">(Optional[str])</span>: Identifiant de la barre. Si None, utilise la barre par défaut.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="next_step"><code>next_step(self, pb_id: Optional[str] = None, current_step: Optional[int] = None, log_levels: Optional[Dict[str, str]] = None) -> int</code></h4>
+      <p class="description">Avance la progression numérique d'une étape ou la définit à une valeur spécifique. Applique un throttling pour limiter la fréquence des mises à jour.</p>
+      <dl class="param-list">
+        <dt>pb_id</dt><dd><span class="param-type">(Optional[str])</span>: Identifiant de la barre. Si None, utilise la barre par défaut.</dd>
+        <dt>current_step</dt><dd><span class="param-type">(Optional[int])</span>: Si fourni, définit directement l'étape actuelle. Sinon, avance de 1.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+       <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">int</span> - Étape actuelle après mise à jour.
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion Progression Visuelle (Texte ou JSONL)</h2>
+
+     <section class="method-section">
+      <h4 class="method-title" id="enable_visual_bars"><code>enable_visual_bars(self, enable: bool = True, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Active ou désactive l'affichage des barres de progression visuelles (mode texte ou JSONL).</p>
+      <dl class="param-list">
+        <dt>enable</dt><dd><span class="param-type">(bool)</span>: True pour activer, False pour désactiver. Défaut: True.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="create_bar"><code>create_bar(self, id: str, total: int = 1, description: str = "", pre_text: Optional[str] = None, post_text: str = "", color: str = "blue", filled_char: Optional[str] = None, empty_char: Optional[str] = None, bar_width: Optional[int] = None, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Crée et affiche une nouvelle barre de progression visuelle (si activée).</p>
+       <dl class="param-list">
+        <dt>id</dt><dd><span class="param-type">(str)</span>: Identifiant unique de la barre.</dd>
+        <dt>total</dt><dd><span class="param-type">(int)</span>: Nombre total d'étapes (minimum 1). Défaut: 1.</dd>
+        <dt>description</dt><dd><span class="param-type">(str)</span>: Description générale (utilisée comme <code>pre_text</code> par défaut). Défaut: "".</dd>
+        <dt>pre_text</dt><dd><span class="param-type">(Optional[str])</span>: Texte à afficher avant la barre. Défaut: None (utilise <code>description</code>).</dd>
+        <dt>post_text</dt><dd><span class="param-type">(str)</span>: Texte à afficher après la barre. Défaut: "".</dd>
+        <dt>color</dt><dd><span class="param-type">(str)</span>: Couleur de la barre ("blue", "green", etc.). Défaut: "blue".</dd>
+        <dt>filled_char</dt><dd><span class="param-type">(Optional[str])</span>: Caractère pour les parties remplies. Défaut: "■".</dd>
+        <dt>empty_char</dt><dd><span class="param-type">(Optional[str])</span>: Caractère pour les parties vides. Défaut: "□".</dd>
+        <dt>bar_width</dt><dd><span class="param-type">(Optional[int])</span>: Largeur de la barre. Défaut: largeur par défaut du logger.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="update_bar"><code>update_bar(self, id: str, current: int, total: Optional[int] = None, pre_text: Optional[str] = None, post_text: Optional[str] = None, color: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Met à jour une barre visuelle existante. Applique un throttling pour limiter la fréquence des mises à jour.</p>
+       <dl class="param-list">
+        <dt>id</dt><dd><span class="param-type">(str)</span>: Identifiant de la barre.</dd>
+        <dt>current</dt><dd><span class="param-type">(int)</span>: Étape actuelle.</dd>
+        <dt>total</dt><dd><span class="param-type">(Optional[int])</span>: Nouveau total d'étapes (optionnel).</dd>
+        <dt>pre_text</dt><dd><span class="param-type">(Optional[str])</span>: Nouveau texte avant (optionnel).</dd>
+        <dt>post_text</dt><dd><span class="param-type">(Optional[str])</span>: Nouveau texte après (optionnel).</dd>
+        <dt>color</dt><dd><span class="param-type">(Optional[str])</span>: Nouvelle couleur (optionnel).</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="next_bar"><code>next_bar(self, id: str, current_step: Optional[int] = None, pre_text: Optional[str] = None, post_text: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> int</code></h4>
+      <p class="description">Avance ou définit l'étape d'une barre visuelle. Applique un throttling.</p>
+       <dl class="param-list">
+        <dt>id</dt><dd><span class="param-type">(str)</span>: Identifiant de la barre.</dd>
+        <dt>current_step</dt><dd><span class="param-type">(Optional[int])</span>: Définit directement l'étape (si None, avance de 1).</dd>
+        <dt>pre_text</dt><dd><span class="param-type">(Optional[str])</span>: Nouveau texte avant (optionnel).</dd>
+        <dt>post_text</dt><dd><span class="param-type">(Optional[str])</span>: Nouveau texte après (optionnel).</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+       <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">int</span> - Étape actuelle après mise à jour.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="delete_bar"><code>delete_bar(self, id: str, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Supprime une barre de progression visuelle. En mode texte, efface la ligne correspondante.</p>
+      <dl class="param-list">
+        <dt>id</dt><dd><span class="param-type">(str)</span>: Identifiant de la barre à supprimer.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_default_bar_style"><code>set_default_bar_style(self, filled_char: str, empty_char: str, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Définit les caractères par défaut pour les nouvelles barres visuelles.</p>
+       <dl class="param-list">
+        <dt>filled_char</dt><dd><span class="param-type">(str)</span>: Caractère pour les parties remplies.</dd>
+        <dt>empty_char</dt><dd><span class="param-type">(str)</span>: Caractère pour les parties vides.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_default_bar_width"><code>set_default_bar_width(self, width: int, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Définit la largeur par défaut (en caractères) pour les nouvelles barres visuelles.</p>
+      <dl class="param-list">
+        <dt>width</dt><dd><span class="param-type">(int)</span>: Largeur (minimum 5).</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+     <h2 class="section-title">Méthodes de Contrôle</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="flush"><code>flush(self, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Force le traitement immédiat de tous les messages en attente dans la file d'attente interne.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+     <section class="method-section">
+      <h4 class="method-title" id="shutdown"><code>shutdown(self, log_levels: Optional[Dict[str, str]] = None)</code></h4>
+      <p class="description">Arrête proprement le thread de traitement des messages (si actif) après avoir traité les messages restants. Doit être appelée avant la fin du programme.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="__del__"><code>__del__(self)</code></h4>
+      <p class="description">Destructeur. Tente d'appeler <code>shutdown()</code> pour un nettoyage propre lors de la destruction de l'objet.</p>
+    </section>
+
+  </div>
+</body>
+</html>

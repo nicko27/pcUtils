@@ -1,0 +1,97 @@
+# Configuration des champs SSH pour l'exécution à distance
+name: "Configuration SSH globale"
+icon: "🔒"
+description: "Paramètres de connexion pour l'exécution distante des plugins"
+hint: "Activez l'exécution distante sur au moins un plugin pour configurer SSH"
+
+# Définition des champs de configuration
+config_fields:
+  ssh_ips:
+    type: "text"
+    label: "Adresses IP (séparées par des virgules)"
+    description: "Peut inclure des caractères génériques (ex: 192.168.1.*) et des virgules"
+    placeholder: "150.27.2.*"
+    default: "128.81.5.217"
+    required: true
+
+  ssh_user:
+    type: "text"
+    label: "Utilisateur SSH"
+    default: "nicolas.voirin"
+    required: true
+
+  ssh_passwd:
+    type: "password"  # À adapter selon si PasswordField est disponible
+    label: "Mot de passe SSH"
+    default: "Yadljbblh1"
+    required: true
+
+  ssh_sms_enabled:
+    type: "checkbox"
+    label: "Selection via la sms"
+    default: false
+
+  ssh_sms:
+    type: "text"
+    label: "Nom de machine de la SMS"
+    default: "ggd027sf"
+    placeholder: "ggd027sf...."
+    required: true
+    enabled_if:
+      field: "ssh_sms_enabled"
+      value: true
+
+  ssh_lrpgn_enabled:
+    type: "checkbox"
+    label: "Selection via les chemins LRPGN"
+    default: false
+
+  ssh_lrpgn:
+    type: "text"
+    label: "Chemin LRPGN de configuration à trouver, veuillez indiquer le chemin à partir de travail"
+    default: "travail/commun/Icare/Configuration"
+    placeholder: "BT, PSIG, BMO placé le plus souvent après commun"
+    required: false
+    enabled_if:
+      field: "ssh_lrpgn_enabled"
+      value: true
+
+
+  ssh_exception_ips:
+    type: "text"
+    label: "Adresses IP exclues de l'exception"
+    placeholder: "150.27.2.200,150.27.2.21*,150.27.2.22*"
+    required: false
+
+  ssh_root_same:
+    type: "checkbox"
+    label: "Utiliser les mêmes identifiants pour sudo"
+    description: "Utiliser les mêmes identifiants que ssh_user et ssh_passwd pour l'accès root"
+    default: true
+
+  ssh_root_user:
+    type: "text"
+    label: "Utilisateur root SSH"
+    description: "Utilisateur à utiliser pour l'accès root via SSH"
+    default: "nicolas.voirin"
+    required: true
+    enabled_if:
+      field: "ssh_root_same"
+      value: false
+
+  ssh_root_passwd:
+    type: "password"
+    label: "Mot de passe root SSH"
+    description: "Mot de passe à utiliser pour l'accès root via SSH"
+    default: "Yadljbblh1"
+    required: true
+    enabled_if:
+      field: "ssh_root_same"
+      value: false
+
+  ssh_port:
+    type: "text"
+    label: "Port SSH"
+    description: "Port SSH à utiliser (22 par défaut)"
+    default: "22"
+    required: false

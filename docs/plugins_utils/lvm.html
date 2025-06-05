@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/lvm.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/lvm.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour la gestion avancée de LVM (Logical Volume Manager) sous Linux.
+      Permet de lister, créer, modifier, redimensionner, supprimer des PVs, VGs, LVs,
+      gérer les snapshots LVM, le thin provisioning et les tags.
+    </p>
+    <p class="dependency-warning">
+      Nécessite que les commandes du paquet <code>lvm2</code> soient installées (<code>pvs</code>, <code>vgs</code>, <code>lvs</code>, <code>pvcreate</code>, etc.).
+      Des dépendances sur <code>e2fsprogs</code> (pour <code>resize2fs</code>), <code>xfsprogs</code> (pour <code>xfs_growfs</code>), <code>btrfs-progs</code> (pour <code>btrfs</code>), <code>util-linux</code> (pour <code>blkid</code>, <code>lsblk</code>, <code>findmnt</code>) peuvent être nécessaires pour certaines fonctionnalités (redimensionnement FS, détection).
+      Dépendance sur <code>plugins_utils.storage</code> pour les opérations nécessitant des informations sur le système de fichiers ou le montage.
+    </p>
+    <p class="critical-warning">
+      <strong>ATTENTION :</strong> De nombreuses opérations LVM (création, suppression, réduction, formatage, snapshots, pvmove) peuvent entraîner une perte de données irréversible si elles sont mal utilisées. Procédez avec une extrême prudence et assurez-vous d'avoir des sauvegardes. La plupart des opérations nécessitent des privilèges root.
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#LvmCommands" class="toc-link">LvmCommands</a></li>
+        <li class="toc-item">Listage / Informations
+            <ul class="toc-sublist">
+                <li><a href="#list_pvs" class="toc-link">list_pvs</a></li>
+                <li><a href="#list_vgs" class="toc-link">list_vgs</a></li>
+                <li><a href="#list_lvs" class="toc-link">list_lvs</a></li>
+                <li><a href="#get_pv_info" class="toc-link">get_pv_info</a></li>
+                <li><a href="#get_vg_info" class="toc-link">get_vg_info</a></li>
+                <li><a href="#get_lv_info" class="toc-link">get_lv_info</a></li>
+            </ul>
+        </li>
+        <li class="toc-item">Création
+            <ul class="toc-sublist">
+                <li><a href="#create_pv" class="toc-link">create_pv</a></li>
+                <li><a href="#create_vg" class="toc-link">create_vg</a></li>
+                <li><a href="#create_lv_linear" class="toc-link">create_lv_linear</a></li>
+                <li><a href="#create_lv_percent" class="toc-link">create_lv_percent</a></li>
+            </ul>
+        </li>
+        <li class="toc-item">Modification / Redimensionnement
+            <ul class="toc-sublist">
+                <li><a href="#extend_vg" class="toc-link">extend_vg</a></li>
+                <li><a href="#extend_lv" class="toc-link">extend_lv</a></li>
+                <li><a href="#resize_filesystem" class="toc-link">resize_filesystem</a></li>
+                <li><a href="#reduce_lv" class="toc-link">reduce_lv</a></li>
+                <li><a href="#rename_vg" class="toc-link">rename_vg</a></li>
+                <li><a href="#resize_pv" class="toc-link">resize_pv</a></li>
+                <li><a href="#reduce_vg" class="toc-link">reduce_vg</a></li>
+            </ul>
+        </li>
+         <li class="toc-item">Suppression
+            <ul class="toc-sublist">
+                <li><a href="#remove_lv" class="toc-link">remove_lv</a></li>
+                <li><a href="#remove_vg" class="toc-link">remove_vg</a></li>
+                <li><a href="#remove_pv" class="toc-link">remove_pv</a></li>
+            </ul>
+        </li>
+        <li class="toc-item">Snapshots
+            <ul class="toc-sublist">
+                <li><a href="#create_lv_snapshot" class="toc-link">create_lv_snapshot</a></li>
+                <li><a href="#remove_lv_snapshot" class="toc-link">remove_lv_snapshot</a></li>
+                <li><a href="#merge_lv_snapshot" class="toc-link">merge_lv_snapshot</a></li>
+            </ul>
+        </li>
+        <li class="toc-item">Thin Provisioning
+            <ul class="toc-sublist">
+                <li><a href="#create_thin_pool" class="toc-link">create_thin_pool</a></li>
+                <li><a href="#create_thin_lv" class="toc-link">create_thin_lv</a></li>
+                <li><a href="#extend_thin_pool" class="toc-link">extend_thin_pool</a></li>
+            </ul>
+        </li>
+        <li class="toc-item">Tags
+            <ul class="toc-sublist">
+                <li><a href="#add_tag" class="toc-link">add_tag</a></li>
+                <li><a href="#remove_tag" class="toc-link">remove_tag</a></li>
+            </ul>
+        </li>
+        <li class="toc-item">Opérations Avancées
+            <ul class="toc-sublist">
+                <li><a href="#move_pv_extents" class="toc-link">move_pv_extents</a></li>
+            </ul>
+        </li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="LvmCommands"><code>LvmCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour gérer LVM (Physical Volumes, Volume Groups, Logical Volumes) avec des fonctionnalités avancées.
+        Hérite de PluginUtilsBase pour l'exécution de commandes.
+      </p>
+    </section>
+
+    <h2 class="section-title">Méthodes de Listage / Informations</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="list_pvs"><code>list_pvs(vg_name: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> Optional[List[Dict[str, Any]]]</code></h4>
+      <p class="description">Liste les Physical Volumes (PVs), éventuellement filtrés par Volume Group.</p>
+      <p class="sudo-warning">Nécessite potentiellement des privilèges root.</p>
+      <dl class="param-list">
+        <dt>vg_name</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Nom du VG pour filtrer les PVs. Défaut: None (liste tous les PVs).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[List[Dict[str, Any]]]</span> - Une liste de dictionnaires représentant les PVs trouvés (avec toutes les colonnes LVM), ou None en cas d'erreur majeure, ou une liste vide si aucun PV trouvé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="list_vgs"><code>list_vgs(vg_name: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> Optional[List[Dict[str, Any]]]</code></h4>
+      <p class="description">Liste les Volume Groups (VGs).</p>
+      <p class="sudo-warning">Nécessite potentiellement des privilèges root.</p>
+       <dl class="param-list">
+        <dt>vg_name</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Nom du VG spécifique à lister. Défaut: None (liste tous les VGs).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[List[Dict[str, Any]]]</span> - Une liste de dictionnaires représentant les VGs trouvés, ou None si erreur, ou liste vide si aucun VG trouvé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="list_lvs"><code>list_lvs(vg_or_lv_path: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> Optional[List[Dict[str, Any]]]</code></h4>
+      <p class="description">Liste les Logical Volumes (LVs), éventuellement filtrés par VG ou nom de LV.</p>
+      <p class="sudo-warning">Nécessite potentiellement des privilèges root.</p>
+      <dl class="param-list">
+        <dt>vg_or_lv_path</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Nom du VG (ex: "vg01"), chemin relatif (ex: "vg01/lvdata") ou chemin absolu (ex: "/dev/vg01/lvdata") pour filtrer. Défaut: None (liste tous les LVs).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[List[Dict[str, Any]]]</span> - Une liste de dictionnaires représentant les LVs trouvés, ou None si erreur, ou liste vide si aucun LV trouvé.
+      </div>
+    </section>
+
+     <section class="method-section">
+      <h4 class="method-title" id="get_pv_info"><code>get_pv_info(pv_device: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]</code></h4>
+      <p class="description">Récupère les informations détaillées d'un Physical Volume spécifique.</p>
+      <p class="sudo-warning">Nécessite potentiellement des privilèges root.</p>
+      <dl class="param-list">
+        <dt>pv_device</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du périphérique PV (ex: <code>/dev/sdb1</code>).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Any]]</span> - Un dictionnaire contenant les informations du PV, ou None si non trouvé ou erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_vg_info"><code>get_vg_info(vg_name: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]</code></h4>
+      <p class="description">Récupère les informations détaillées d'un Volume Group spécifique.</p>
+      <p class="sudo-warning">Nécessite potentiellement des privilèges root.</p>
+      <dl class="param-list">
+        <dt>vg_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du Volume Group.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Any]]</span> - Un dictionnaire contenant les informations du VG, ou None si non trouvé ou erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_lv_info"><code>get_lv_info(lv_path_or_name: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]</code></h4>
+      <p class="description">Récupère les informations détaillées d'un Logical Volume spécifique.</p>
+      <p class="sudo-warning">Nécessite potentiellement des privilèges root.</p>
+      <dl class="param-list">
+        <dt>lv_path_or_name</dt>
+        <dd><span class="param-type">(str)</span>: Chemin absolu (<code>/dev/vg/lv</code>), chemin relatif (<code>vg/lv</code>) ou nom du LV (si unique).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Any]]</span> - Un dictionnaire contenant les informations du LV, ou None si non trouvé ou erreur.
+      </div>
+    </section>
+
+    <h2 class="section-title">Méthodes de Création</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="create_pv"><code>create_pv(device: str, force: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Initialise un disque ou une partition comme Physical Volume (PV) via <code>pvcreate</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <p class="critical-warning">L'option <code>force=True</code> est dangereuse et peut entraîner une perte de données.</p>
+      <dl class="param-list">
+        <dt>device</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du périphérique (ex: <code>/dev/sdb1</code>, <code>/dev/sdc</code>).</dd>
+        <dt>force</dt>
+        <dd><span class="param-type">(bool)</span>: Utiliser <code>-ff</code> pour forcer l'initialisation même si des données existent. Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la création réussit ou si le périphérique est déjà un PV.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="create_vg"><code>create_vg(vg_name: str, devices: List[str], tags: Optional[List[str]] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Crée un Volume Group (VG) à partir d'un ou plusieurs PVs via <code>vgcreate</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>vg_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du nouveau Volume Group.</dd>
+        <dt>devices</dt>
+        <dd><span class="param-type">(List[str])</span>: Liste des chemins des périphériques PV à inclure (ex: <code>['/dev/sdb1', '/dev/sdc1']</code>).</dd>
+        <dt>tags</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste de tags à ajouter au VG lors de la création. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la création réussit ou si le VG existe déjà.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="create_lv_linear"><code>create_lv_linear(vg_name: str, lv_name: str, size: Union[str, int], units: str = 'G', tags: Optional[List[str]] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Crée un Logical Volume (LV) linéaire de taille fixe via <code>lvcreate -L</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>vg_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du VG parent.</dd>
+        <dt>lv_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du nouveau LV.</dd>
+        <dt>size</dt>
+        <dd><span class="param-type">(Union[str, int])</span>: Taille du LV (nombre ou chaîne avec unité LVM comme '10G', '512M').</dd>
+        <dt>units</dt>
+        <dd><span class="param-type">(str)</span>: Unité par défaut si <code>size</code> est un nombre (k, m, g, t, p, e). Défaut: 'G'.</dd>
+        <dt>tags</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste de tags à ajouter au LV. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la création réussit ou si le LV existe déjà.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="create_lv_percent"><code>create_lv_percent(vg_name: str, lv_name: str, percent: int, pool: str = 'VG', tags: Optional[List[str]] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Crée un LV en utilisant un pourcentage de l'espace du VG ou de l'espace libre via <code>lvcreate -l</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>vg_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du VG parent.</dd>
+        <dt>lv_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du nouveau LV.</dd>
+        <dt>percent</dt>
+        <dd><span class="param-type">(int)</span>: Pourcentage de l'espace (1-100).</dd>
+        <dt>pool</dt>
+        <dd><span class="param-type">(str)</span>: Pool de référence pour le pourcentage ('VG' ou 'FREE'). Défaut: 'VG'.</dd>
+        <dt>tags</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste de tags à ajouter au LV. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la création réussit ou si le LV existe déjà.
+      </div>
+    </section>
+
+    <h2 class="section-title">Méthodes de Modification / Redimensionnement</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="extend_vg"><code>extend_vg(vg_name: str, devices: List[str], log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute un ou plusieurs PVs à un VG existant via <code>vgextend</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>vg_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du VG à étendre.</dd>
+        <dt>devices</dt>
+        <dd><span class="param-type">(List[str])</span>: Liste des chemins des PVs à ajouter.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'extension réussit.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="extend_lv"><code>extend_lv(lv_path_or_name: str, size_increase: Union[str, int], units: str = 'G', resize_fs: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Étend un Logical Volume et optionnellement son système de fichiers (si supporté et `resize_fs=True`). Utilise <code>lvextend</code> (avec <code>--resizefs</code> si possible).</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>lv_path_or_name</dt>
+        <dd><span class="param-type">(str)</span>: Chemin absolu, relatif ou nom du LV.</dd>
+        <dt>size_increase</dt>
+        <dd><span class="param-type">(Union[str, int])</span>: Taille à ajouter (ex: '2G', 512M, 100). Peut inclure '+' ou '%'.</dd>
+        <dt>units</dt>
+        <dd><span class="param-type">(str)</span>: Unité par défaut si <code>size_increase</code> est un nombre. Défaut: 'G'.</dd>
+        <dt>resize_fs</dt>
+        <dd><span class="param-type">(bool)</span>: Tenter de redimensionner le FS après l'extension du LV (via <code>--resizefs</code> ou appel manuel à <code>resize_filesystem</code>). Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'extension du LV (et du FS si demandé) a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="resize_filesystem"><code>resize_filesystem(lv_path: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Redimensionne le système de fichiers sur un LV pour occuper tout l'espace disponible. Appelé automatiquement par <code>extend_lv</code> si `resize_fs=True` et non géré par `--resizefs`. Supporte ext2/3/4, XFS, Btrfs (si `StorageCommands` est disponible).</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>lv_path</dt>
+        <dd><span class="param-type">(str)</span>: Chemin complet du LV (ex: <code>/dev/vg/lv</code>).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le redimensionnement FS a réussi ou si le FS n'est pas supporté. False en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="reduce_lv"><code>reduce_lv(lv_path_or_name: str, new_size: Union[str, int], units: str = 'G', resize_fs: bool = True, unmount_required: bool = True, force_fsck: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Réduit la taille d'un LV et de son système de fichiers. <strong>Opération dangereuse qui peut entraîner une perte de données.</strong></p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <p class="critical-warning"><strong>ATTENTION :</strong> Nécessite généralement de démonter le système de fichiers (sauf BTRFS online). La réduction du FS doit être faite AVANT la réduction du LV. XFS ne supporte pas la réduction.</p>
+      <dl class="param-list">
+        <dt>lv_path_or_name</dt>
+        <dd><span class="param-type">(str)</span>: Chemin absolu, relatif ou nom du LV.</dd>
+        <dt>new_size</dt>
+        <dd><span class="param-type">(Union[str, int])</span>: Nouvelle taille <strong>totale</strong> du LV (ex: '8G', 500M).</dd>
+        <dt>units</dt>
+        <dd><span class="param-type">(str)</span>: Unité par défaut si <code>new_size</code> est un nombre. Défaut: 'G'.</dd>
+        <dt>resize_fs</dt>
+        <dd><span class="param-type">(bool)</span>: Tenter de réduire le FS avant le LV. Fortement recommandé. Défaut: True.</dd>
+        <dt>unmount_required</dt>
+        <dd><span class="param-type">(bool)</span>: Vérifier et tenter de démonter si nécessaire (pour ext*, XFS). Défaut: True.</dd>
+        <dt>force_fsck</dt>
+        <dd><span class="param-type">(bool)</span>: Exécuter `e2fsck` avant de réduire un FS ext*. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la réduction du LV (et du FS si demandé) a réussi. False sinon.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="rename_vg"><code>rename_vg(old_vg_name: str, new_vg_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Renomme un Volume Group via <code>vgrename</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>old_vg_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom actuel du VG.</dd>
+        <dt>new_vg_name</dt>
+        <dd><span class="param-type">(str)</span>: Nouveau nom souhaité pour le VG.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le renommage a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="resize_pv"><code>resize_pv(pv_device: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Redimensionne un PV pour utiliser l'espace disque supplémentaire après agrandissement du périphérique sous-jacent via <code>pvresize</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>pv_device</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du périphérique PV (ex: <code>/dev/sdb1</code>).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si aucune redimension n'était nécessaire.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="reduce_vg"><code>reduce_vg(vg_name: str, pv_device: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime un PV d'un VG via <code>vgreduce</code>. Le PV doit être vide d'extents (utiliser <code>move_pv_extents</code> au préalable).</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>vg_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du VG à réduire.</dd>
+        <dt>pv_device</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du PV à retirer du VG.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la réduction réussit. False si le PV n'est pas vide ou autre erreur.
+      </div>
+    </section>
+
+    <h2 class="section-title">Méthodes de Suppression (Opérations Destructives)</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="remove_lv"><code>remove_lv(lv_path_or_name: str, force: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime un Logical Volume via <code>lvremove</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <p class="critical-warning"><strong>ATTENTION :</strong> Opération destructive.</p>
+      <dl class="param-list">
+        <dt>lv_path_or_name</dt>
+        <dd><span class="param-type">(str)</span>: Chemin absolu, relatif ou nom du LV.</dd>
+        <dt>force</dt>
+        <dd><span class="param-type">(bool)</span>: Forcer la suppression sans confirmation (option <code>-f</code>). Recommandé pour les scripts. Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si le LV n'existait pas. False si le LV est monté ou autre erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="remove_vg"><code>remove_vg(vg_name: str, force: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime un Volume Group vide via <code>vgremove</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <p class="critical-warning"><strong>ATTENTION :</strong> Opération destructive. Échoue si le VG contient des LVs.</p>
+      <dl class="param-list">
+        <dt>vg_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du VG à supprimer.</dd>
+        <dt>force</dt>
+        <dd><span class="param-type">(bool)</span>: Forcer la suppression (option <code>-f</code>). Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si le VG n'existait pas. False si le VG contient des LVs ou autre erreur.
+      </div>
+    </section>
+
+     <section class="method-section">
+      <h4 class="method-title" id="remove_pv"><code>remove_pv(device: str, force: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime les métadonnées LVM d'un Physical Volume via <code>pvremove</code>. Le PV ne doit appartenir à aucun VG.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <p class="critical-warning"><strong>ATTENTION :</strong> Opération destructive. Utiliser après avoir retiré le PV du VG avec `vgreduce`.</p>
+      <dl class="param-list">
+        <dt>device</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du périphérique PV.</dd>
+        <dt>force</dt>
+        <dd><span class="param-type">(bool)</span>: Forcer la suppression (option <code>-ff</code>). Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si ce n'était pas un PV. False si le PV est utilisé par un VG ou autre erreur.
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion des Snapshots</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="create_lv_snapshot"><code>create_lv_snapshot(lv_path_or_name: str, snapshot_name: str, size: Union[str, int], units: str = 'G', tags: Optional[List[str]] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Crée un snapshot LVM pour un Logical Volume existant via <code>lvcreate --snapshot</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>lv_path_or_name</dt>
+        <dd><span class="param-type">(str)</span>: Chemin ou nom du LV d'origine.</dd>
+        <dt>snapshot_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom à donner au snapshot.</dd>
+        <dt>size</dt>
+        <dd><span class="param-type">(Union[str, int])</span>: Taille allouée pour stocker les changements du snapshot.</dd>
+        <dt>units</dt>
+        <dd><span class="param-type">(str)</span>: Unité de taille par défaut si <code>size</code> est un nombre. Défaut: 'G'.</dd>
+        <dt>tags</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Liste de tags à ajouter au snapshot. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la création réussit ou si le snapshot existe déjà.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="remove_lv_snapshot"><code>remove_lv_snapshot(snapshot_path_or_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime un snapshot LVM (utilise <code>lvremove -f</code>).</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <p class="critical-warning"><strong>ATTENTION :</strong> Supprime l'instantané. Les modifications qui y étaient stockées seront perdues.</p>
+      <dl class="param-list">
+        <dt>snapshot_path_or_name</dt>
+        <dd><span class="param-type">(str)</span>: Chemin absolu, relatif ou nom du snapshot à supprimer.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si le snapshot n'existait pas.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="merge_lv_snapshot"><code>merge_lv_snapshot(snapshot_path_or_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Fusionne les modifications d'un snapshot actif dans son volume d'origine via <code>lvconvert --merge</code>. Le snapshot est supprimé après la fusion (peut nécessiter une (dés)activation du LV origine).</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <p class="critical-warning"><strong>ATTENTION :</strong> L'opération peut être longue et la fusion réelle peut être différée jusqu'à la prochaine activation du LV origine.</p>
+       <dl class="param-list">
+        <dt>snapshot_path_or_name</dt>
+        <dd><span class="param-type">(str)</span>: Chemin absolu, relatif ou nom du snapshot à fusionner.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la commande de fusion a été lancée avec succès (même si la fusion est différée). False si l'objet n'est pas un snapshot valide ou autre erreur.
+      </div>
+    </section>
+
+     <h2 class="section-title">Gestion du Thin Provisioning</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="create_thin_pool"><code>create_thin_pool(vg_name: str, pool_name: str, size: Union[str, int], units: str = 'G', metadata_size: Optional[Union[str, int]] = None, metadata_units: str = 'M', tags: Optional[List[str]] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Crée un Thin Pool LVM via <code>lvcreate --type thin-pool</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>vg_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du VG parent.</dd>
+        <dt>pool_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom à donner au Thin Pool (qui est un LV).</dd>
+        <dt>size</dt>
+        <dd><span class="param-type">(Union[str, int])</span>: Taille du pool pour les données.</dd>
+        <dt>units</dt>
+        <dd><span class="param-type">(str)</span>: Unité par défaut pour <code>size</code>. Défaut: 'G'.</dd>
+        <dt>metadata_size</dt>
+        <dd><span class="param-type">(Optional[Union[str, int]])</span>: Taille du volume de métadonnées (optionnel, LVM choisit une valeur par défaut sinon).</dd>
+        <dt>metadata_units</dt>
+        <dd><span class="param-type">(str)</span>: Unité par défaut pour <code>metadata_size</code>. Défaut: 'M'.</dd>
+        <dt>tags</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Tags à ajouter au pool. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si le pool existe déjà.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="create_thin_lv"><code>create_thin_lv(vg_name: str, pool_name: str, lv_name: str, size: Union[str, int], units: str = 'G', tags: Optional[List[str]] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Crée un Thin Logical Volume dans un Thin Pool existant via <code>lvcreate -V ... --thin</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+       <dl class="param-list">
+        <dt>vg_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du VG contenant le pool.</dd>
+        <dt>pool_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du Thin Pool parent.</dd>
+        <dt>lv_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du nouveau Thin LV.</dd>
+        <dt>size</dt>
+        <dd><span class="param-type">(Union[str, int])</span>: Taille <strong>virtuelle</strong> du Thin LV.</dd>
+        <dt>units</dt>
+        <dd><span class="param-type">(str)</span>: Unité par défaut pour <code>size</code>. Défaut: 'G'.</dd>
+        <dt>tags</dt>
+        <dd><span class="param-type">(Optional[List[str]])</span>: Tags à ajouter au Thin LV. Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si le Thin LV existe déjà. False si pool inexistant ou manque d'espace.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="extend_thin_pool"><code>extend_thin_pool(vg_name: str, pool_name: str, size_increase: Union[str, int], units: str = 'G', resize_metadata: bool = True, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Étend un Thin Pool LVM existant via <code>lvextend</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>vg_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du VG contenant le pool.</dd>
+        <dt>pool_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du Thin Pool à étendre.</dd>
+        <dt>size_increase</dt>
+        <dd><span class="param-type">(Union[str, int])</span>: Taille à ajouter au pool de données.</dd>
+        <dt>units</dt>
+        <dd><span class="param-type">(str)</span>: Unité par défaut pour <code>size_increase</code>. Défaut: 'G'.</dd>
+        <dt>resize_metadata</dt>
+        <dd><span class="param-type">(bool)</span>: Argument conservé mais LVM gère généralement l'extension des métadonnées automatiquement si nécessaire. Défaut: True.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion des Tags LVM</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_tag"><code>add_tag(lvm_object_path: str, tag: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute un tag à un objet LVM (PV, VG ou LV) via <code>pvchange</code>, <code>vgchange</code> ou <code>lvchange</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+       <dl class="param-list">
+        <dt>lvm_object_path</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du PV (<code>/dev/sdX</code>), nom du VG, ou chemin/nom du LV (<code>vg/lv</code> ou <code>/dev/vg/lv</code>).</dd>
+        <dt>tag</dt>
+        <dd><span class="param-type">(str)</span>: Le tag à ajouter.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si le tag existait déjà.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="remove_tag"><code>remove_tag(lvm_object_path: str, tag: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime un tag d'un objet LVM (PV, VG ou LV).</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+       <dl class="param-list">
+        <dt>lvm_object_path</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du PV, nom du VG, ou chemin/nom du LV.</dd>
+        <dt>tag</dt>
+        <dd><span class="param-type">(str)</span>: Le tag à supprimer.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si le tag n'existait pas.
+      </div>
+    </section>
+
+    <h2 class="section-title">Opérations Avancées</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="move_pv_extents"><code>move_pv_extents(source_pv: str, dest_pv: Optional[str] = None, lv_path_or_name: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Déplace les extents physiques alloués d'un PV vers un ou plusieurs autres PVs dans le même VG via <code>pvmove</code>. Utile pour vider un PV avant de le retirer.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <p class="critical-warning"><strong>ATTENTION :</strong> Opération potentiellement très longue, surtout avec beaucoup de données.</p>
+       <dl class="param-list">
+        <dt>source_pv</dt>
+        <dd><span class="param-type">(str)</span>: Chemin du PV source dont les extents doivent être déplacés.</dd>
+        <dt>dest_pv</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Chemin du PV de destination spécifique. Si None, LVM choisit automatiquement parmi les PVs libres du VG. Défaut: None.</dd>
+        <dt>lv_path_or_name</dt>
+        <dd><span class="param-type">(Optional[str])</span>: Si spécifié, déplace uniquement les extents appartenant à ce LV. Défaut: None (déplace tous les extents du PV).</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire optionnel pour spécifier les niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le déplacement a réussi.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

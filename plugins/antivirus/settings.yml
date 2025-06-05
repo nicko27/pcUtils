@@ -1,0 +1,10 @@
+name: Antivirus
+description: Vérification et forçage de la mise à jour de l'antivirus
+version: 1.0
+category: Système
+multiple: false
+ssh_debug: true
+icon: 🛡️
+# Ajout du support pour l'exécution distante
+remote_execution: true
+needs_sudo: true

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/services.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/services.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour la gestion des services systemd.
+      Permet de démarrer, arrêter, redémarrer, recharger, activer, désactiver
+      et vérifier l'état des services du système via la commande <code>systemctl</code>.
+    </p>
+    <p class="dependency-warning">
+      Nécessite la commande <strong><code>systemctl</code></strong>.
+      Utilise également <code>test</code> et <code>which</code> pour trouver <code>systemctl</code>.
+    </p>
+     <p class="sudo-warning">La plupart des opérations de modification (start, stop, restart, reload, enable, disable) nécessitent des privilèges root.</p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#ServiceCommands" class="toc-link">ServiceCommands</a></li>
+        <li class="toc-item"><a href="#start" class="toc-link">start</a></li>
+        <li class="toc-item"><a href="#stop" class="toc-link">stop</a></li>
+        <li class="toc-item"><a href="#restart" class="toc-link">restart</a></li>
+        <li class="toc-item"><a href="#reload" class="toc-link">reload</a></li>
+        <li class="toc-item"><a href="#enable" class="toc-link">enable</a></li>
+        <li class="toc-item"><a href="#disable" class="toc-link">disable</a></li>
+        <li class="toc-item"><a href="#is_active" class="toc-link">is_active</a></li>
+        <li class="toc-item"><a href="#is_enabled" class="toc-link">is_enabled</a></li>
+        <li class="toc-item"><a href="#get_status" class="toc-link">get_status</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="ServiceCommands"><code>ServiceCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour gérer les services systemd via <code>systemctl</code>.
+        Hérite de PluginUtilsBase pour l'exécution de commandes.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Méthodes de Gestion des Services</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="start"><code>start(service_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Démarre un service systemd via <code>systemctl start</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>service_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du service (ex: 'sshd', 'apache2.service').</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le démarrage a réussi (ou si le service tournait déjà et est vérifié comme actif).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="stop"><code>stop(service_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Arrête un service systemd via <code>systemctl stop</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>service_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du service.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'arrêt a réussi (ou si le service était déjà arrêté/inactif).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="restart"><code>restart(service_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Redémarre un service systemd via <code>systemctl restart</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>service_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du service.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le redémarrage a réussi et que le service est vérifié comme actif après un court délai.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="reload"><code>reload(service_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Recharge la configuration d'un service sans l'arrêter via <code>systemctl reload</code>. Si 'reload' échoue, tente <code>systemctl reload-or-restart</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>service_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du service.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le rechargement (ou rechargement/redémarrage) a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="enable"><code>enable(service_name: str, now: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Active un service systemd au démarrage via <code>systemctl enable</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>service_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du service.</dd>
+        <dt>now</dt>
+        <dd><span class="param-type">(bool)</span>: Si True, démarre aussi le service immédiatement (<code>--now</code>). Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'activation a réussi (ou si déjà activé). Si <code>now=True</code>, inclut le succès du démarrage.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="disable"><code>disable(service_name: str, now: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Désactive un service systemd au démarrage via <code>systemctl disable</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>service_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du service.</dd>
+        <dt>now</dt>
+        <dd><span class="param-type">(bool)</span>: Si True, arrête aussi le service immédiatement (<code>--now</code>). Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la désactivation a réussi (ou si déjà désactivé). Si <code>now=True</code>, inclut le succès de l'arrêt.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_active"><code>is_active(service_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie si un service est actuellement actif (running) via <code>systemctl is-active --quiet</code>.</p>
+       <dl class="param-list">
+        <dt>service_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du service.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le service est actif (code retour 0).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_enabled"><code>is_enabled(service_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie si un service est activé au démarrage via <code>systemctl is-enabled --quiet</code>.</p>
+      <dl class="param-list">
+        <dt>service_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du service.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le service est activé (code retour 0). False s'il est désactivé, statique, masqué, ou en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_status"><code>get_status(service_name: str, log_levels: Optional[Dict[str, str]] = None) -> Dict[str, Any]</code></h4>
+      <p class="description">Récupère le statut détaillé d'un service via <code>systemctl show --output=json --all</code>.</p>
+      <dl class="param-list">
+        <dt>service_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du service.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Dict[str, Any]</span> - Dictionnaire contenant les informations du statut (clés normalisées comme 'name', 'description', 'load_state', 'active_state', 'sub_state', 'enabled', 'pid', etc.), ou un dict vide si erreur.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

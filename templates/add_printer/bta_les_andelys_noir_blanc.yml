@@ -1,0 +1,8 @@
+name: Les Andelys BT NB
+description:
+variables:
+  printer_ip: 150.27.11.221
+  printer_model: KM301i.yml
+  printer_name: BT_NB
+  printer_a3: false
+  printer_all: true

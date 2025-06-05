@@ -1,0 +1,8 @@
+name: Groupement
+description:
+variables:
+  printer_ip: 128.81.2.184
+  printer_model: KM251iCA.yml
+  printer_name: GRPT
+  printer_a3: false
+  printer_all: true

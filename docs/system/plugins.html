@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Création de Plugins - pcUtils</title>
+    <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">&larr; Retour à l'accueil</a>
+            <h1>Création de Plugins</h1>
+            <p class="subtitle">Guide détaillé pour développer des plugins pcUtils.</p>
+        </header>
+
+        <section class="content-section">
+            <h2>Introduction</h2>
+            <p>Les plugins sont le cœur de pcUtils. Ils encapsulent une tâche d'administration spécifique (installer un logiciel, configurer un service, etc.) et peuvent être exécutés localement ou à distance.</p>
+            <p>Ce guide explique la structure requise, la configuration via <code>settings.yml</code>, l'écriture des scripts d'exécution et l'interaction avec l'interface utilisateur.</p>
+        </section>
+
+        <section class="content-section">
+            <h2>Structure d'un Répertoire de Plugin</h2>
+            <p>Chaque plugin doit résider dans son propre sous-dossier à l'intérieur du répertoire principal <code>plugins/</code>.</p>
+            <pre><code>
+pcUtils/
+├── plugins/
+│   ├── mon_plugin/             &lt;-- Dossier du plugin
+│   │   ├── settings.yml        &lt;-- Configuration et métadonnées (Obligatoire)
+│   │   ├── exec.py             &lt;-- Script d'exécution Python (ou exec.bash/main.sh) (Obligatoire)
+│   │   ├── __init__.py         &lt;-- (Optionnel, pour en faire un package Python)
+│   │   ├── requirements.txt    &lt;-- (Optionnel, dépendances Python spécifiques)
+│   │   ├── templates/          &lt;-- (Optionnel) Dossier pour les templates de config
+│   │   │   └── template_bureau.yml
+│   │   └── ...                 &lt;-- Autres fichiers nécessaires (scripts, configs)
+│   └── autre_plugin/
+│       └── ...
+├── plugins_utils/              &lt;-- Bibliothèque partagée (Optionnelle)
+│   └── ...
+├── sequences/
+│   └── ...
+├── templates/
+│   └── ...
+└── ui/
+    └── ...
+            </code></pre>
+             <p>Le <strong>nom du dossier</strong> (ex: <code>mon_plugin</code>) est important car il est utilisé comme identifiant interne par défaut si le <code>name</code> n'est pas spécifié dans <code>settings.yml</code>.</p>
+        </section>
+
+        <section class="content-section">
+            <h2>Le Fichier <code>settings.yml</code></h2>
+            <p>Ce fichier YAML est <strong>obligatoire</strong> et centralise toutes les informations sur le plugin et sa configuration.</p>
+            <pre><code>
+# Exemple de settings.yml
+name: "Installation Serveur Web"      # Nom affiché dans l'UI (obligatoire)
+icon: "🌐"                             # Icône affichée (optionnel, défaut '📦')
+description: "Installe et configure Apache ou Nginx." # Description courte (optionnel)
+
+multiple: false                       # (Optionnel) Peut-on ajouter plusieurs fois ce plugin ? (défaut: false)
+remote_execution: true                # (Optionnel) Ce plugin peut-il être exécuté via SSH ? (défaut: false)
+needs_sudo: true                      # (Optionnel) Le script exec.py/main.sh nécessite-t-il sudo ? (pour SSH, défaut: false)
+
+# (Optionnel) Fichiers dont le contenu sera chargé et injecté dans la config
+files_content:
+  apache_vhost_config: "configs/apache/{vhost_name}.yml" # Chemin relatif au dossier du plugin
+                                                         # {vhost_name} sera remplacé par la valeur du champ 'vhost_name'
+
+# (Optionnel) Fichiers ou motifs à exclure lors de la copie SSH
+excluded_files:
+  - "*.log"
+  - "secrets.txt"
+# Ou ssh_pattern_exceptions: ["*.bak", "temp/"] # Autre nom possible
+
+# (Optionnel) Champs de configuration affichés dans l'UI
+config_fields:
+  # Format Dictionnaire (préféré)
+  webserver_type:                   # ID unique du champ
+    type: select                    # Type de champ (voir section suivante)
+    label: "Type de serveur web"    # Texte affiché à l'utilisateur
+    variable: "server_choice"       # (Optionnel) Nom utilisé dans la config passée à exec.py (défaut: ID du champ)
+    options:                        # Options pour le type 'select'
+      - ["Apache", "apache"]        # [Label affiché, Valeur interne]
+      - ["Nginx", "nginx"]
+    default: "apache"               # Valeur par défaut
+    required: true                  # Champ obligatoire ? (défaut: false)
+
+  vhost_name:
+    type: text
+    label: "Nom du Virtual Host"
+    placeholder: "mondomaine.com"
+    depends_on: "webserver_type"    # La valeur dépend de webserver_type (simplifie la logique dynamique)
+    required: true
+
+  enable_ssl:
+    type: checkbox
+    label: "Activer HTTPS (SSL/TLS)"
+    default: false
+
+  ssl_cert_path:
+    type: directory                 # Champ de sélection de répertoire
+    label: "Chemin du certificat SSL"
+    required: true
+    enabled_if:                     # S'active seulement si 'enable_ssl' est coché
+      field: "enable_ssl"           # ID du champ dont dépend l'activation
+      value: true                   # Valeur requise pour activer ce champ
+    # Ou format multiple:
+    # enabled_if:
+    #   operator: 'AND'             # ou 'OR'
+    #   conditions:
+    #     - { field: "enable_ssl", value: true }
+    #     - { field: "another_field", value: "some_value" }
+
+  admin_email:
+    type: text
+    label: "Email de l'administrateur"
+    required: false
+
+  # Format Liste (moins courant, supporté pour compatibilité)
+  # - id: php_version
+  #   type: select
+  #   label: "Version PHP"
+  #   options: ["7.4", "8.0", "8.1", "8.2"]
+  #   default: "8.1"
+            </code></pre>
+            <ul>
+                <li><span class="config-item">name</span>, <span class="config-item">icon</span>, <span class="config-item">description</span>: Métadonnées pour l'affichage.</li>
+                <li><span class="config-item">multiple</span>: Si <code>true</code>, l'utilisateur peut ajouter plusieurs instances de ce plugin dans l'écran de sélection.</li>
+                <li><span class="config-item">remote_execution</span>: Si <code>true</code>, une case "Activer l'exécution distante" sera ajoutée à l'écran de configuration, permettant l'exécution via SSH.</li>
+                <li><span class="config-item">needs_sudo</span>: Important pour l'exécution SSH. Si <code>true</code>, le script <code>ssh_wrapper.py</code> tentera d'utiliser <code>sudo</code> pour exécuter le script du plugin sur la machine distante.</li>
+                <li><span class="config-item">files_content</span>: Très utile pour injecter des configurations complexes (ex: contenu d'un vhost Apache) dans la variable de configuration passée au script <code>exec.py</code>. Le chemin peut contenir des variables <code>{nom_variable}</code> qui seront remplacées par les valeurs des autres champs de configuration. Le contenu du fichier (souvent YAML) est parsé et injecté.</li>
+                <li><span class="config-item">excluded_files</span> / <span class="config-item">ssh_pattern_exceptions</span>: Liste de noms de fichiers ou motifs (avec <code>*</code>) à ne pas copier sur la machine distante lors de l'exécution SSH.</li>
+                <li><span class="config-item">config_fields</span>: Définit le formulaire de configuration. Voir section suivante.</li>
+            </ul>
+        </section>
+
+        <section class="content-section">
+            <h2>Définition des Champs de Configuration (`config_fields`)</h2>
+            <p>La section <code>config_fields</code> (un dictionnaire ou une liste de dictionnaires) décrit les paramètres que l'utilisateur peut configurer.</p>
+            <h3>Attributs Communs</h3>
+            <ul>
+                <li><span class="config-item">id</span>: Identifiant unique du champ dans le plugin (obligatoire).</li>
+                <li><span class="config-item">type</span>: Type du champ (obligatoire). Valeurs possibles :
+                    <ul>
+                        <li><code>text</code>: Champ de texte simple (<span class="class-name">TextField</span>).</li>
+                        <li><code>password</code>: Champ de texte masqué (<span class="class-name">PasswordField</span>).</li>
+                        <li><code>ip</code>: Champ de texte avec validation d'adresse IP (<span class="class-name">IPField</span>).</li>
+                        <li><code>directory</code>: Champ de texte avec bouton "Parcourir" (utilise <code>zenity</code> si disponible) (<span class="class-name">DirectoryField</span>).</li>
+                        <li><code>checkbox</code>: Case à cocher (valeur booléenne) (<span class="class-name">CheckboxField</span>).</li>
+                        <li><code>select</code>: Liste déroulante (<span class="class-name">SelectField</span>). Nécessite l'attribut <span class="config-item">options</span> ou <span class="config-item">dynamic_options</span>.</li>
+                        <li><code>checkbox_group</code>: Groupe de cases à cocher (<span class="class-name">CheckboxGroupField</span>). Nécessite <span class="config-item">options</span> ou <span class="config-item">dynamic_options</span>. Retourne une liste des valeurs cochées.</li>
+                    </ul>
+                </li>
+                <li><span class="config-item">label</span>: Texte affiché à côté du champ (obligatoire).</li>
+                <li><span class="config-item">variable</span>: (Optionnel) Nom de la clé utilisée pour cette valeur dans le dictionnaire de configuration final passé au script <code>exec.py</code>. Si omis, l'`id` du champ est utilisé.</li>
+                <li><span class="config-item">default</span>: (Optionnel) Valeur par défaut du champ.</li>
+                <li><span class="config-item">required</span>: (Optionnel, bool) Si <code>true</code>, le champ doit être rempli. Un astérisque (*) est ajouté au label. (Défaut: <code>false</code>).</li>
+                <li><span class="config-item">description</span>: (Optionnel) Texte d'aide affiché sous le champ.</li>
+                <li><span class="config-item">placeholder</span>: (Optionnel, pour les types texte) Texte indicatif affiché dans le champ vide.</li>
+                <li><span class="config-item">enabled_if</span>: (Optionnel) Condition pour activer/désactiver le champ. Voir section Dépendances.</li>
+                <li><span class="config-item">depends_on</span>: (Optionnel) Indique qu'un champ dépend d'un autre (ex: pour des valeurs dynamiques liées). Voir section Dépendances.</li>
+            </ul>
+            <h3>Attributs Spécifiques</h3>
+            <ul>
+                <li><strong>Pour `select` et `checkbox_group`</strong>:
+                    <ul>
+                        <li><span class="config-item">options</span>: (Optionnel) Liste statique d'options. Chaque option peut être :
+                            <ul>
+                                <li>Une liste/tuple: <code>[Label Affiché, Valeur Interne]</code> (ex: <code>["Apache", "apache"]</code>).</li>
+                                <li>Une chaîne ou un nombre: Utilisé comme label et valeur (ex: <code>"8.1"</code>).</li>
+                                <li>Un dictionnaire: <code>{description: Label, value: Valeur}</code> ou autres clés comme <code>name</code>, <code>id</code>.</li>
+                            </ul>
+                        </li>
+                        <li><span class="config-item">dynamic_options</span>: (Optionnel) Configuration pour charger les options dynamiquement depuis un script Python. Voir section Dépendances.</li>
+                        <li><span class="config-item">allow_blank</span>: (Optionnel, pour `select`) Si `true`, permet de ne sélectionner aucune option. (Défaut: <code>false</code>).</li>
+                         <li><span class="config-item">default_selected</span>: (Optionnel, pour `checkbox_group`) Liste des valeurs qui doivent être cochées par défaut.</li>
+                    </ul>
+                </li>
+                 <li><strong>Pour `directory`</strong>:
+                    <ul>
+                        <li><span class="config-item">exists</span>: (Optionnel, bool) Si `true`, valide que le chemin entré existe et est un répertoire.</li>
+                    </ul>
+                </li>
+                <li><strong>Pour les types texte</strong>:
+                    <ul>
+                        <li><span class="config-item">min_length</span> / <span class="config-item">max_length</span>: (Optionnel, int) Longueur minimale/maximale.</li>
+                        <li><span class="config-item">validate</span>: (Optionnel) Règle de validation simple (ex: <code>no_spaces</code>).</li>
+                    </ul>
+                </li>
+            </ul>
+            <h3>Dépendances entre Champs</h3>
+            <ul>
+                <li><strong><code>enabled_if</code></strong>: Permet d'activer/désactiver un champ en fonction de la valeur d'un autre.
+                    <pre><code>
+# Syntaxe Simple
+enabled_if:
+  field: "autre_champ_id"  # ID du champ de contrôle
+  value: true             # Valeur requise pour activer ce champ
+  remove_if_disabled: false # (Optionnel) Supprimer le champ de l'UI si désactivé
+
+# Syntaxe Multiple (avec conditions)
+enabled_if:
+  operator: 'OR'          # 'AND' (défaut) ou 'OR'
+  remove_if_disabled: true # (Optionnel)
+  conditions:
+    - { field: "champ_A", value: "valeur1" }
+    - { field: "champ_B", value: false }
+                    </code></pre>
+                    <span class="file-ref">[<code>config_screen/config_container.py</code>]</span>
+                </li>
+                <li><strong><code>depends_on</code></strong>: Utilisé principalement pour déclencher la mise à jour des <code>dynamic_options</code> d'un champ lorsque la valeur d'un autre champ change.
+                     <pre><code>
+depends_on: "champ_parent_id" # Déclenche la màj quand champ_parent_id change
+
+# Ou format multiple (déclenche si l'un des champs change)
+depends_on:
+  operator: 'OR' # 'AND' est moins courant ici
+  fields: ["champ_A", "champ_B"]
+                     </code></pre>
+                     <span class="file-ref">[<code>config_screen/config_container.py</code>]</span>
+                </li>
+                <li><strong><code>dynamic_options</code></strong>: Charge les options d'un champ <code>select</code> ou <code>checkbox_group</code> depuis un script Python.
+                    <pre><code>
+dynamic_options:
+  script: "mon_script_options.py" # Nom du script
+  function: "get_les_options"     # Nom de la fonction dans le script
+  global: false                   # (Optionnel) true si le script est dans /scripts/ (défaut: false, cherche dans le dossier plugin)
+  path: "@[scripts]"              # (Optionnel) Chemin alternatif. "@[nom_dossier]" cherche dans pcUtils/nom_dossier/
+  args:                           # (Optionnel) Arguments à passer à la fonction
+    - field: "champ_parent_id"    # Passe la valeur de champ_parent_id
+      param_name: "filtre"        # Nom du paramètre dans la fonction Python
+    - value: "config_statique"    # Passe une valeur statique
+      param_name: "mode"
+  # (Optionnel) Clés à utiliser pour extraire valeur/description si la fonction retourne une liste de dicts
+  value: "machine_id"
+  description: "hostname"
+  # (Optionnel, pour checkbox_group) Sélectionne automatiquement les options correspondantes
+  auto_select_key: "is_default"
+  auto_select_value: true # Valeur de auto_select_key qui déclenche la sélection
+                    </code></pre>
+                    Le script Python (`mon_script_options.py`) doit contenir la fonction (`get_les_options`). Elle peut accepter les arguments définis (`filtre`, `mode`) et doit retourner une liste au format attendu par le champ (ex: liste de `[Label, Valeur]` ou liste de dictionnaires). <span class="file-ref">[<code>config_screen/select_field.py</code>, <code>config_screen/checkbox_group_field.py</code>]</span>
+                </li>
+                 <li><strong><code>dynamic_default</code></strong>: (Optionnel) Similaire à <code>dynamic_options</code>, mais pour charger la valeur par défaut d'un champ depuis un script.
+                    <pre><code>
+dynamic_default:
+  script: "get_defaults.py"
+  function: "get_default_email"
+  args:
+    - field: "user_type"
+      param_name: "role"
+                    </code></pre>
+                    <span class="file-ref">[<code>config_screen/config_field.py</code>]</span>
+                </li>
+            </ul>
+        </section>
+
+        <section class="content-section">
+            <h2>Script d'Exécution (`exec.py` / `main.sh`)</h2>
+            <h3>Plugin Python (`exec.py`)</h3>
+            <ul>
+                <li>Doit être exécutable (<code>python3 exec.py ...</code>).</li>
+                <li>Reçoit la configuration via :
+                    <ul>
+                        <li>Un argument JSON unique : <code>python3 exec.py '{...json...}'</code> (si la config est courte).</li>
+                        <li>Un chemin vers un fichier JSON temporaire via l'option <code>-c</code> : <code>python3 exec.py -c /tmp/config.json</code> (si la config est longue ou pour SSH).</li>
+                    </ul>
+                </li>
+                <li>Le script doit parser cet argument (JSON ou fichier) pour accéder à sa configuration. La configuration contient toutes les valeurs des champs définis dans `config_fields` (sous leur nom de `variable` ou `id`), plus potentiellement le contenu des fichiers chargés via `files_content`.</li>
+                <li><strong>Communication avec l'UI (Crucial)</strong>:
+                    <ul>
+                        <li>Utiliser la classe <span class="class-name">PluginLogger</span> de la bibliothèque `plugins_utils`.</li>
+                        <li>Initialiser le logger : <code>log = PluginLogger("nom_plugin", instance_id)</code>.</li>
+                        <li>Envoyer des logs : <code>log.info("message")</code>, <code>log.error("erreur")</code>, <code>log.warning("...")</code>, <code>log.success("...")</code>.</li>
+                        <li>Afficher la progression :
+                            <ul>
+                                <li>Barre simple : <code>log.progress(percentage=0.5, step=1, total_steps=2)</code> (pourcentage entre 0.0 et 1.0).</li>
+                                <li>Barre texte : <code>log.progress_bar_start(total=10, pre_text="Copie")</code>, <code>log.progress_bar_update(current=5, post_text="fichier.txt")</code>, <code>log.progress_bar_stop()</code>.</li>
+                            </ul>
+                        </li>
+                        <li>Ces méthodes impriment des lignes JSON formatées sur `stdout`, qui sont interceptées et traitées par <span class="class-name">LoggerUtils</span> dans l'UI.</li>
+                    </ul>
+                    <span class="file-ref">[<code>plugins_utils/plugin_logger.py</code>, <code>execution_screen/logger_utils.py</code>]</span>
+                </li>
+                <li>Le script doit retourner un code de sortie 0 en cas de succès, et non-zéro en cas d'erreur.</li>
+            </ul>
+            <pre><code>
+# Exemple simple d'exec.py
+import sys
+import json
+import argparse
+from plugins_utils.plugin_logger import PluginLogger # Assurez-vous que plugins_utils est accessible
+
+def main(config, log):
+    log.info("Démarrage du plugin...")
+    server_type = config.get('server_choice', 'inconnu')
+    vhost = config.get('vhost_name', 'default')
+    log.info(f"Configuration pour {server_type} - vhost: {vhost}")
+
+    # Simuler une tâche longue
+    for i in range(5):
+        log.progress(percentage=(i+1)/5, step=i+1, total_steps=5, status_text=f"Étape {i+1}")
+        # time.sleep(0.5) # Ne pas utiliser time.sleep dans un plugin Textual
+
+    if config.get('enable_ssl'):
+        log.info("Configuration SSL activée.")
+        cert_path = config.get('ssl_cert_path')
+        if not cert_path:
+            log.error("Chemin du certificat SSL manquant !")
+            return 1 # Code d'erreur
+
+    log.success("Plugin terminé avec succès.")
+    return 0 # Code de succès
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--config', help='Path to config file')
+    parser.add_argument('config_json', nargs='?', help='Config as JSON string')
+    args = parser.parse_args()
+
+    plugin_config = {}
+    if args.config:
+        try:
+            with open(args.config, 'r') as f:
+                plugin_config = json.load(f)
+        except Exception as e:
+            print(f"[ERROR] Failed to load config file: {e}", file=sys.stderr)
+            sys.exit(1)
+    elif args.config_json:
+        try:
+            plugin_config = json.loads(args.config_json)
+        except Exception as e:
+            print(f"[ERROR] Failed to parse JSON config: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    # Extraire l'instance_id (peut être dans la config ou déduit)
+    instance_id = plugin_config.get('instance_id', 0)
+    plugin_name = plugin_config.get('plugin_name', 'unknown_plugin')
+
+    # Initialiser le logger
+    logger = PluginLogger(plugin_name, instance_id)
+
+    # Exécuter la logique principale
+    exit_code = main(plugin_config.get('config', {}), logger) # Passer la sous-config
+    sys.exit(exit_code)
+            </code></pre>
+
+            <h3>Plugin Bash (`main.sh` ou `exec.bash`)</h3>
+             <ul>
+                 <li>Doit être exécutable (<code>chmod +x main.sh</code>).</li>
+                 <li>Reçoit deux arguments : <code>$1</code> = nom du plugin, <code>$2</code> = intensité (non utilisé actuellement).</li>
+                 <li>La configuration n'est PAS passée directement. Si des paramètres sont nécessaires, le plugin bash doit les lire depuis un fichier qu'il connaît ou utiliser des variables d'environnement (non standardisé).</li>
+                 <li>La communication avec l'UI (logs, progression) est limitée. La sortie standard et d'erreur est capturée mais interprétée comme du texte brut par défaut. Pour une meilleure intégration, privilégier les plugins Python.</li>
+                 <li>Doit retourner un code de sortie 0 pour succès, non-zéro pour erreur.</li>
+             </ul>
+             <pre><code>
+#!/bin/bash
+PLUGIN_NAME="$1"
+INTENSITY="$2" # Non utilisé pour le moment
+
+echo "[INFO] Démarrage du plugin Bash: $PLUGIN_NAME"
+# ... logique du script ...
+ls -l /tmp
+
+if [ $? -eq 0 ]; then
+  echo "[SUCCESS] Plugin Bash terminé."
+  exit 0
+else
+  echo "[ERROR] Erreur dans le plugin Bash." >&2
+  exit 1
+fi
+             </code></pre>
+        </section>
+
+        <footer>
+            <p>Documentation pcUtils</p>
+        </footer>
+    </div>
+</body>
+</html>

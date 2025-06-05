@@ -1,0 +1,8 @@
+name: Les Andelys PSIG
+description:
+variables:
+  printer_ip: 150.27.11.225
+  printer_model: KM227.yml
+  printer_name: PSIG
+  printer_a3: false
+  printer_all: true

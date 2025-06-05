@@ -1,0 +1,8 @@
+name: Amfreville Bas
+description:
+variables:
+  printer_ip: 150.27.26.22
+  printer_model: KM301i.yml
+  printer_name: BAS
+  printer_a3: false
+  printer_all: true

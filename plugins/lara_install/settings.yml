@@ -1,0 +1,8 @@
+name: LARA
+description: Installation ou mise à jour de l'application LARA
+version: 1.0
+category: Logiciel
+multiple: false
+icon: 💽
+remote_execution: true
+needs_sudo: true

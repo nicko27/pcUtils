@@ -1,0 +1,8 @@
+name: LRPGN
+description: Suppression et Reinstallation de LRPGN avec remise du conf.ini
+version: 1.0
+category: Logiciel
+multiple: false
+icon: 💽
+remote_execution: true
+needs_sudo: true

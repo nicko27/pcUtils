@@ -1,0 +1,8 @@
+name: SLF
+description:
+variables:
+  printer_ip: 128.81.2.194
+  printer_model: KM227.yml
+  printer_name: SLF
+  printer_a3: false
+  printer_all: true

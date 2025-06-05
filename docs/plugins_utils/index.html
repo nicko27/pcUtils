@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport"
+              content="width=device-width, initial-scale=1.0">
+        <title>Documentation - Utilitaires plugins_utils</title>
+        <link rel="stylesheet"
+              href="docs_style.css">
+        <style>
+            /* Styles spécifiques à l'index */
+            .index-list {
+                list-style: none;
+                padding: 0;
+                margin-top: 1.5rem;
+            }
+
+            .index-category {
+                font-size: 1.25rem;
+                /* text-xl */
+                font-weight: 600;
+                /* font-semibold */
+                margin-top: 1.5rem;
+                /* mt-6 */
+                margin-bottom: 0.5rem;
+                /* mb-2 */
+                color: #495057;
+                /* Gris moyen-foncé */
+            }
+
+            .index-item {
+                margin-bottom: 1rem; /* mb-4 */
+                margin-left: 1rem;
+                /* ml-4 */
+                padding-left: 1rem; /* pl-4 */
+                border-left: 3px solid #e9ecef; /* border-l-3 border-gray-200 */
+            }
+
+            .index-link {
+                color: #0d6efd;
+                /* Bleu primaire */
+                text-decoration: none;
+                font-size: 1.1rem; /* text-lg */
+                font-weight: 500; /* font-medium */
+                display: block; /* Pour que le clic fonctionne sur toute la zone */
+                margin-bottom: 0.25rem; /* mb-1 */
+                transition: color 0.2s ease;
+            }
+
+            .index-link code {
+                font-size: 0.95em;
+                background-color: #e9ecef;
+                padding: 0.1em 0.3em;
+                border-radius: 3px;
+                color: #0a58ca;
+            }
+
+            .index-link:hover,
+            .index-link:focus {
+                text-decoration: underline;
+                color: #0a58ca;
+                /* Bleu plus foncé */
+            }
+            .index-description {
+                font-size: 0.95rem; /* text-sm */
+                color: #6c757d; /* text-gray-600 */
+                margin-top: 0;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="container">
+
+            <h1 class="main-title">Documentation des Utilitaires <code>plugins_utils</code></h1>
+
+            <p class="module-description">
+                Bienvenue dans la documentation de la bibliothèque d'utilitaires <code>plugins_utils</code>.
+                Cette bibliothèque fournit un ensemble de classes et de fonctions pour faciliter
+                l'écriture de plugins d'administration système en Python, en encapsulant les appels
+                aux commandes système courantes et en offrant des fonctionnalités supplémentaires.
+                Cliquez sur un module ci-dessous pour accéder à sa documentation détaillée, incluant les accès rapides aux fonctions spécifiques.
+            </p>
+
+            <ul class="index-list">
+                <li>
+                    <h3 class="index-category">Base et Interaction</h3>
+                </li>
+                <li class="index-item">
+                    <a href="plugins_utils_base.html" class="index-link"><code>plugins_utils_base.py</code></a>
+                    <p class="index-description">Module de base fournissant journalisation, exécution de commandes (avec gestion sudo) et progression.</p>
+                </li>
+                 <li class="index-item">
+                    <a href="plugin_logger.html" class="index-link"><code>plugin_logger.py</code></a>
+                    <p class="index-description">Journalisation JSONL/texte et barres de progression multiples pour l'affichage en temps réel.</p>
+                </li>
+                <li class="index-item">
+                    <a href="interactive_commands.html" class="index-link"><code>interactive_commands.py</code></a>
+                    <p class="index-description">Exécution de commandes interactives via Pexpect avec scénarios attente/réponse.</p>
+                </li>
+                 <li class="index-item">
+                    <a href="utils_cmd.html" class="index-link"><code>utils_cmd.py</code></a>
+                    <p class="index-description">Fonctions utilitaires générales (manipulation de dictionnaires, terminaison de processus).</p>
+                </li>
+                 <li class="index-item">
+                    <a href="validation_utils.html" class="index-link"><code>validation_utils.py</code></a>
+                    <p class="index-description">Fonctions de validation pour divers formats (hostname, IP, email, URL, cron, user, group).</p>
+                </li>
+
+                <li>
+                    <h3 class="index-category">Gestion des Paquets et Dépendances</h3>
+                </li>
+                <li class="index-item">
+                    <a href="apt.html" class="index-link"><code>apt.py</code></a>
+                    <p class="index-description">Gestion complète des paquets APT (Debian/Ubuntu) : update, install, upgrade, remove, etc.</p>
+                 </li>
+                <li class="index-item">
+                    <a href="dpkg.html" class="index-link"><code>dpkg.py</code></a>
+                     <p class="index-description">Gestion avancée via dpkg : sélections de paquets et pré-réponses debconf.</p>
+                 </li>
+                 <li class="index-item">
+                    <a href="dependency_checker.html" class="index-link"><code>dependency_checker.py</code></a>
+                     <p class="index-description">Vérification des prérequis d'un plugin (commandes, paquets, modules Python, fichiers).</p>
+                 </li>
+
+                <li>
+                    <h3 class="index-category">Gestion Système</h3>
+                </li>
+                <li class="index-item">
+                    <a href="users_groups.html" class="index-link"><code>users_groups.py</code></a>
+                     <p class="index-description">Gestion des utilisateurs et groupes locaux (ajout, suppression, modification, appartenance).</p>
+                 </li>
+                <li class="index-item">
+                    <a href="system_info_extended.html" class="index-link"><code>system_info_extended.py</code></a>
+                    <p class="index-description">Récupération d'informations système et matérielles étendues (PCI, USB, DMI, disques, SMART, CPU).</p>
+                </li>
+                <li class="index-item">
+                    <a href="kernel.html" class="index-link"><code>kernel.py</code></a>
+                     <p class="index-description">Interaction avec le noyau Linux : paramètres sysctl et gestion des modules (lsmod, modprobe, rmmod).</p>
+                 </li>
+                <li class="index-item">
+                    <a href="cron.html" class="index-link"><code>cron.py</code></a>
+                     <p class="index-description">Gestion des tâches planifiées Cron (crontab utilisateur et fichiers /etc/cron.d).</p>
+                 </li>
+                <li class="index-item">
+                    <a href="services.html" class="index-link"><code>services.py</code></a>
+                    <p class="index-description">Gestion des services systemd (start, stop, restart, reload, enable, disable, status).</p>
+                </li>
+                <li class="index-item">
+                    <a href="grub.html" class="index-link"><code>grub.py</code></a>
+                    <p class="index-description">Interaction avec le chargeur d'amorçage GRUB (update-grub, grub-install, /etc/default/grub).</p>
+                </li>
+                 <li class="index-item">
+                    <a href="efi.html" class="index-link"><code>efi.py</code></a>
+                    <p class="index-description">Gestion des entrées de démarrage EFI via efibootmgr (lister, créer, supprimer, ordonner).</p>
+                </li>
+
+                <li>
+                    <h3 class="index-category">Stockage et Fichiers</h3>
+                </li>
+                 <li class="index-item">
+                    <a href="files.html" class="index-link"><code>files.py</code></a>
+                     <p class="index-description">Opérations sur fichiers/répertoires (copie, déplacement, remplacement texte, taille) avec progression.</p>
+                 </li>
+                 <li class="index-item">
+                    <a href="config_files.html" class="index-link"><code>config_files.py</code></a>
+                    <p class="index-description">Lecture/écriture de fichiers de configuration (INI, JSON, blocs type Dovecot) et manipulation texte.</p>
+                </li>
+                 <li class="index-item">
+                    <a href="text_utils.html" class="index-link"><code>text_utils.py</code></a>
+                    <p class="index-description">Utilitaires pour le traitement de texte : parsing clé-valeur, tableaux, sections, recherche regex, nettoyage.</p>
+                </li>
+                <li class="index-item">
+                    <a href="storage.html" class="index-link"><code>storage.py</code></a>
+                    <p class="index-description">Informations sur le stockage : systèmes de fichiers, points de montage, espace disque (lsblk, findmnt, df).</p>
+                </li>
+                <li class="index-item">
+                    <a href="lvm.html" class="index-link"><code>lvm.py</code></a>
+                    <p class="index-description">Gestion LVM avancée : PV, VG, LV (création, redimensionnement, suppression), snapshots, thin provisioning.</p>
+                </li>
+                <li class="index-item">
+                    <a href="raid.html" class="index-link"><code>raid.py</code></a>
+                    <p class="index-description">Gestion RAID logiciel Linux (mdadm) : création, gestion, surveillance, réparation.</p>
+                </li>
+                <li>
+                    <h3 class="index-category">Réseau et Services Distants</h3>
+                </li>
+                <li class="index-item">
+                    <a href="ldap.html" class="index-link"><code>ldap.py</code></a>
+                    <p class="index-description">Interaction avec des annuaires LDAP via les commandes ldap-utils (search, add, modify, delete).</p>
+                </li>
+                <li>
+                    <h3 class="index-category">Sécurité</h3>
+                </li>
+                <li class="index-item">
+                    <a href="firewall.html" class="index-link"><code>firewall.py</code></a>
+                     <p class="index-description">Gestion du pare-feu UFW (enable, disable, allow, deny, delete, status).</p>
+                 </li>
+                <li class="index-item">
+                    <a href="security.html" class="index-link"><code>security.py</code></a>
+                    <p class="index-description">Tâches de sécurité : gestion clés SSH (keygen, authorized_keys), permissions, propriétaires, fail2ban, ACLs POSIX.</p>
+                </li>
+                <li class="index-item">
+                    <a href="ssl_certs.html" class="index-link"><code>ssl_certs.py</code></a>
+                    <p class="index-description">Gestion basique des certificats SSL/TLS via openssl (vérif expiration, infos, auto-signé).</p>
+                </li>
+                <li class="index-item">
+                    <a href="selinux_apparmor.html" class="index-link"><code>selinux_apparmor.py</code></a>
+                    <p class="index-description">Interaction avec les systèmes MAC SELinux et AppArmor (statut, modes, booléens, profils).</p>
+                </li>
+
+                <li>
+                    <h3 class="index-category">Applications et Services Spécifiques</h3>
+                </li>
+                <li class="index-item">
+                    <a href="dovecot.html" class="index-link"><code>dovecot.py</code></a>
+                    <p class="index-description">Gestion des configurations Dovecot (paramètres, plugins, namespaces, ACLs, quotas).</p>
+                </li>
+                <li class="index-item">
+                    <a href="mozilla_prefs.html" class="index-link"><code>mozilla_prefs.py</code></a>
+                    <p class="index-description">Gestion des configurations Firefox/Thunderbird (prefs.js, user.js, policies.json, autoconfig).</p>
+                </li>
+                <li class="index-item">
+                    <a href="printers.html" class="index-link"><code>printers.py</code></a>
+                    <p class="index-description">Gestion des imprimantes CUPS (ajout, suppression, configuration, statut).</p>
+                </li>
+                 <li class="index-item">
+                    <a href="database.html" class="index-link"><code>database.py</code></a>
+                     <p class="index-description">Interaction basique avec MySQL/MariaDB et PostgreSQL via les outils CLI.</p>
+                 </li>
+                <li class="index-item">
+                    <a href="webserver.html" class="index-link"><code>webserver.py</code></a>
+                    <p class="index-description">Gestion basique Apache2 et Nginx (vérif config, activation/désactivation sites/modules, reload).</p>
+                </li>
+                <li class="index-item">
+                    <a href="ocs_manager.html" class="index-link"><code>ocs_manager.py</code></a>
+                    <p class="index-description">Interaction avec OCS Inventory NG (Agent CLI et API REST serveur).</p>
+                 </li>
+
+                <li>
+                    <h3 class="index-category">Diagnostic et Réparation</h3>
+                </li>
+                <li class="index-item">
+                    <a href="logs.html" class="index-link"><code>logs.py</code></a>
+                    <p class="index-description">Gestion et analyse des logs : logrotate, journald (vacuum), recherche (fichiers larges, lignes fréquentes, erreurs).</p>
+                 </li>
+                <li class="index-item">
+                    <a href="health_checker.html" class="index-link"><code>health_checker.py</code></a>
+                    <p class="index-description">Vérifications de l'état général du système (disque, mémoire, CPU, réseau, services, dmesg).</p>
+                </li>
+                </ul>
+
+        </div>
+    </body>
+
+</html>

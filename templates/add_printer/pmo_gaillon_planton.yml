@@ -1,0 +1,8 @@
+name: Gaillon PMO Planton
+description:
+variables:
+  printer_ip: 150.27.40.220
+  printer_model: KM227C.yml
+  printer_name: PLANTON
+  printer_a3: false
+  printer_all: true

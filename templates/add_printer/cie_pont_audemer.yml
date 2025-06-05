@@ -1,0 +1,8 @@
+name: Pont Audemer CIE
+description:
+variables:
+  printer_ip: 150.27.31.227
+  printer_model: KM251iCA.yml
+  printer_name: CIE
+  printer_a3: false
+  printer_all: true

@@ -1,0 +1,10 @@
+name: Mise a jour des paquets
+description: Mise à jour via install-update
+version: 1.0
+category: Système
+multiple: false
+ssh_debug: true
+icon: 💽
+# Ajout du support pour l'exécution distante
+remote_execution: false
+needs_sudo: true

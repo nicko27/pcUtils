@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/kernel.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/kernel.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour interagir avec le noyau Linux.
+      Permet de lire/modifier les paramètres sysctl et de gérer les modules du noyau.
+    </p>
+    <p class="dependency-warning">
+      Nécessite les commandes <code>uname</code>, <code>lsmod</code>, <code>grep</code> (optionnel), <code>test</code>, <code>modprobe</code>, <code>rmmod</code>, <code>sysctl</code>.
+    </p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#KernelCommands" class="toc-link">KernelCommands</a></li>
+        <li class="toc-item"><a href="#get_uname_info" class="toc-link">get_uname_info</a></li>
+        <li class="toc-item"><a href="#list_modules" class="toc-link">list_modules</a></li>
+        <li class="toc-item"><a href="#is_module_loaded" class="toc-link">is_module_loaded</a></li>
+        <li class="toc-item"><a href="#load_module" class="toc-link">load_module</a></li>
+        <li class="toc-item"><a href="#unload_module" class="toc-link">unload_module</a></li>
+        <li class="toc-item"><a href="#get_sysctl_value" class="toc-link">get_sysctl_value</a></li>
+        <li class="toc-item"><a href="#set_sysctl_value" class="toc-link">set_sysctl_value</a></li>
+        <li class="toc-item"><a href="#get_all_sysctl" class="toc-link">get_all_sysctl</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="KernelCommands"><code>KernelCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour interagir avec les paramètres et modules du noyau Linux.
+        Hérite de PluginUtilsBase pour l'exécution de commandes.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Méthodes Principales</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_uname_info"><code>get_uname_info(log_levels: Optional[Dict[str, str]] = None) -> Dict[str, str]</code></h4>
+      <p class="description">Récupère les informations du noyau via la commande <code>uname</code> avec différentes options.</p>
+       <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Dict[str, str]</span> - Dictionnaire contenant les informations uname (kernel_name, node_name, kernel_release, kernel_version, machine, operating_system). Les valeurs sont "N/A" en cas d'échec pour une option spécifique.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="list_modules"><code>list_modules(log_levels: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]</code></h4>
+      <p class="description">Liste les modules du noyau actuellement chargés via <code>lsmod</code>.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">List[Dict[str, Any]]</span> - Liste de dictionnaires, chaque dict représentant un module chargé avec les clés: 'module', 'size', 'used_by_count', 'used_by' (liste de noms de modules dépendants). Retourne une liste vide si erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="is_module_loaded"><code>is_module_loaded(module_name: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie si un module spécifique est chargé, principalement en vérifiant l'existence du dossier correspondant dans <code>/sys/module/</code>.</p>
+      <dl class="param-list">
+        <dt>module_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du module (ex: 'kvm', 'nvidia').</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le module est chargé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="load_module"><code>load_module(module_name: str, params: Optional[Dict[str, str]] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Charge un module noyau via <code>modprobe</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>module_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du module à charger.</dd>
+        <dt>params</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Dictionnaire de paramètres à passer au module (ex: {'param1': 'value1', 'param2': 0}). Défaut: None.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le chargement a réussi ou si le module était déjà chargé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="unload_module"><code>unload_module(module_name: str, force: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Décharge un module noyau via <code>rmmod</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>module_name</dt>
+        <dd><span class="param-type">(str)</span>: Nom du module à décharger.</dd>
+        <dt>force</dt>
+        <dd><span class="param-type">(bool)</span>: Utiliser l'option <code>-f</code> (déchargement forcé, dangereux). Défaut: False.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le déchargement a réussi ou si le module n'était pas chargé. False si le module est en cours d'utilisation ou en cas d'autre erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_sysctl_value"><code>get_sysctl_value(parameter: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[str]</code></h4>
+      <p class="description">Lit la valeur d'un paramètre sysctl via <code>sysctl -n</code>.</p>
+      <dl class="param-list">
+        <dt>parameter</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paramètre (ex: 'kernel.hostname', 'net.ipv4.ip_forward').</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[str]</span> - Valeur du paramètre sous forme de chaîne, ou None si le paramètre n'existe pas ou en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_sysctl_value"><code>set_sysctl_value(parameter: str, value: Union[str, int], log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Modifie la valeur d'un paramètre sysctl via <code>sysctl -w</code>. Le changement est appliqué immédiatement mais n'est pas persistant par défaut (il faut modifier <code>/etc/sysctl.conf</code> ou un fichier dans <code>/etc/sysctl.d/</code> pour la persistance).</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>parameter</dt>
+        <dd><span class="param-type">(str)</span>: Nom du paramètre.</dd>
+        <dt>value</dt>
+        <dd><span class="param-type">(Union[str, int])</span>: Nouvelle valeur.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la modification a réussi.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_all_sysctl"><code>get_all_sysctl(log_levels: Optional[Dict[str, str]] = None) -> Dict[str, str]</code></h4>
+      <p class="description">Récupère tous les paramètres sysctl et leurs valeurs via <code>sysctl -a</code>.</p>
+      <dl class="param-list">
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Dict[str, str]</span> - Dictionnaire des paramètres {paramètre: valeur}. Retourne un dictionnaire potentiellement incomplet en cas d'erreur partielle.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

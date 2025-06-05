@@ -1,0 +1,72 @@
+# === Fichiers Python compilés ===
+__pycache__/
+*.py[cod]
+*$py.class
+
+# === Dossiers spécifiques au projet ===
+logs/
+libs/
+
+# === Fichiers de log ===
+*.log
+
+# === Fichiers temporaires d'éditeurs ===
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
+*.temp
+
+# === Fichiers de configuration utilisateur ===
+*.env
+.env
+*.venv/
+venv/
+ENV/
+env/
+.venv/
+.ENV/
+
+# === PyInstaller ===
+# Si tu utilises pyinstaller pour packager ton script
+dist/
+build/
+*.spec
+
+# === pip-tools ===
+pip-wheel-metadata/
+
+# === Test coverage / pytest / tox ===
+.coverage
+.cache/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# === mypy ===
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# === VSCode / IDEs ===
+.vscode/
+.idea/
+*.code-workspace
+
+# === Systèmes d'exploitation ===
+.DS_Store
+Thumbs.db
+
+# === Autres fichiers de sauvegarde ===
+*.orig
+*.rej
+
+# === Jupyter Notebooks checkpoints ===
+.ipynb_checkpoints/
+
+# === fichiers SQLite si tu en génères temporairement ===
+*.sqlite
+*.sqlite3

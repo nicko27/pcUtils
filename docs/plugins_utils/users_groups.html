@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation: plugins_utils/users_groups.py</title>
+  <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="main-title">Documentation: <code>plugins_utils/users_groups.py</code></h1>
+
+    <p class="module-description">
+      Module utilitaire pour la gestion des utilisateurs et groupes locaux sous Linux.
+      Utilise les commandes système standard (<code>useradd</code>, <code>usermod</code>, <code>userdel</code>, <code>groupadd</code>, <code>groupmod</code>, <code>groupdel</code>, <code>gpasswd</code>, <code>chpasswd</code>, <code>getent</code>, <code>groups</code>).
+      Inclut le cryptage interne des mots de passe via le module Python <code>crypt</code>.
+    </p>
+    <p class="dependency-warning">
+      Nécessite les commandes mentionnées ci-dessus.
+      Nécessite le module Python <code>crypt</code>.
+    </p>
+    <p class="sudo-warning">La plupart des opérations de modification (ajout, suppression, modification d'utilisateurs/groupes, définition de mot de passe, ajout/retrait d'utilisateur à un groupe) nécessitent des privilèges root.</p>
+
+    <nav class="toc">
+      <h3 class="toc-title">Accès Rapide aux Méthodes</h3>
+      <ul class="toc-list">
+        <li class="toc-item"><a href="#UserGroupCommands" class="toc-link">UserGroupCommands</a></li>
+        <li class="toc-item"><a href="#user_exists" class="toc-link">user_exists</a></li>
+        <li class="toc-item"><a href="#group_exists" class="toc-link">group_exists</a></li>
+        <li class="toc-item"><a href="#add_user" class="toc-link">add_user</a></li>
+        <li class="toc-item"><a href="#delete_user" class="toc-link">delete_user</a></li>
+        <li class="toc-item"><a href="#modify_user" class="toc-link">modify_user</a></li>
+        <li class="toc-item"><a href="#set_password" class="toc-link">set_password</a></li>
+        <li class="toc-item"><a href="#add_group" class="toc-link">add_group</a></li>
+        <li class="toc-item"><a href="#delete_group" class="toc-link">delete_group</a></li>
+        <li class="toc-item"><a href="#modify_group" class="toc-link">modify_group</a></li>
+        <li class="toc-item"><a href="#add_user_to_group" class="toc-link">add_user_to_group</a></li>
+        <li class="toc-item"><a href="#remove_user_from_group" class="toc-link">remove_user_from_group</a></li>
+        <li class="toc-item"><a href="#get_user_info" class="toc-link">get_user_info</a></li>
+        <li class="toc-item"><a href="#get_group_info" class="toc-link">get_group_info</a></li>
+        <li class="toc-item"><a href="#get_user_groups" class="toc-link">get_user_groups</a></li>
+      </ul>
+    </nav>
+
+    <h2 class="section-title">Classe Principale</h2>
+    <section class="method-section">
+      <h3 class="method-title" id="UserGroupCommands"><code>UserGroupCommands(PluginsUtilsBase)</code></h3>
+      <p class="description">
+        Classe pour gérer les utilisateurs et groupes locaux.
+        Hérite de PluginUtilsBase pour l'exécution de commandes et la progression.
+      </p>
+       <dl class="param-list">
+          <dt>logger</dt>
+          <dd><span class="param-type">(Optional[PluginLogger])</span>: Logger à utiliser.</dd>
+          <dt>target_ip</dt>
+          <dd><span class="param-type">(Optional[str])</span>: IP cible (pour les opérations à distance).</dd>
+      </dl>
+    </section>
+
+    <h2 class="section-title">Fonctions de Vérification</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="user_exists"><code>user_exists(username: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie si un utilisateur local existe via <code>getent passwd [username]</code>.</p>
+      <dl class="param-list">
+        <dt>username</dt>
+        <dd><span class="param-type">(str)</span>: Nom de l'utilisateur à vérifier.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'utilisateur existe.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="group_exists"><code>group_exists(groupname: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Vérifie si un groupe local existe via <code>getent group [groupname]</code>.</p>
+       <dl class="param-list">
+        <dt>groupname</dt>
+        <dd><span class="param-type">(str)</span>: Nom du groupe à vérifier.</dd>
+        <dt>log_levels</dt>
+        <dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si le groupe existe.
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion des Utilisateurs</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_user"><code>add_user(username: str, password: Optional[str] = None, encrypted_password: Optional[str] = None, uid: Optional[int] = None, gid: Optional[Union[int, str]] = None, gecos: Optional[str] = None, home_dir: Optional[str] = None, create_home: bool = True, shell: Optional[str] = '/bin/bash', primary_group: Optional[str] = None, secondary_groups: Optional[List[str]] = None, system_user: bool = False, no_user_group: bool = False, no_log_init: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute un nouvel utilisateur local via <code>useradd</code>. Gère la définition du mot de passe via <code>chpasswd</code> si un mot de passe en clair est fourni (<code>password</code>) et que <code>encrypted_password</code> n'est pas défini.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+      <dl class="param-list">
+        <dt>username</dt><dd><span class="param-type">(str)</span>: Nom du nouvel utilisateur.</dd>
+        <dt>password</dt><dd><span class="param-type">(Optional[str])</span>: Mot de passe en clair. Sera crypté et défini via <code>chpasswd</code> si <code>encrypted_password</code> n'est pas fourni.</dd>
+        <dt>encrypted_password</dt><dd><span class="param-type">(Optional[str])</span>: Mot de passe déjà crypté (format attendu par <code>useradd -p</code>). Prioritaire sur <code>password</code>.</dd>
+        <dt>uid</dt><dd><span class="param-type">(Optional[int])</span>: UID spécifique.</dd>
+        <dt>gid</dt><dd><span class="param-type">(Optional[Union[int, str]])</span>: GID ou nom du groupe principal initial.</dd>
+        <dt>gecos</dt><dd><span class="param-type">(Optional[str])</span>: Champ GECOS (informations utilisateur).</dd>
+        <dt>home_dir</dt><dd><span class="param-type">(Optional[str])</span>: Chemin du répertoire personnel. Si 'no', utilise <code>-M</code>. Si None, utilise le défaut système.</dd>
+        <dt>create_home</dt><dd><span class="param-type">(bool)</span>: Créer le répertoire personnel (<code>-m</code>). Ignoré si <code>home_dir='no'</code>. Défaut: True.</dd>
+        <dt>shell</dt><dd><span class="param-type">(Optional[str])</span>: Shell de connexion. Défaut: '/bin/bash'.</dd>
+        <dt>primary_group</dt><dd><span class="param-type">(Optional[str])</span>: Nom ou GID du groupe principal (<code>-g</code>). Écrase <code>gid</code>.</dd>
+        <dt>secondary_groups</dt><dd><span class="param-type">(Optional[List[str]])</span>: Liste des groupes secondaires (<code>-G</code>).</dd>
+        <dt>system_user</dt><dd><span class="param-type">(bool)</span>: Créer un utilisateur système (<code>-r</code>). Défaut: False.</dd>
+        <dt>no_user_group</dt><dd><span class="param-type">(bool)</span>: Ne pas créer de groupe privé pour l'utilisateur (<code>-n</code>). Défaut: False.</dd>
+        <dt>no_log_init</dt><dd><span class="param-type">(bool)</span>: Ne pas ajouter l'utilisateur au fichier lastlog (<code>-l</code>). Défaut: False.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si l'ajout (et la définition du mot de passe si fourni) a réussi. False si l'utilisateur existait déjà ou en cas d'erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="delete_user"><code>delete_user(username: str, remove_home: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime un utilisateur local via <code>userdel</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+       <dl class="param-list">
+        <dt>username</dt><dd><span class="param-type">(str)</span>: Nom de l'utilisateur à supprimer.</dd>
+        <dt>remove_home</dt><dd><span class="param-type">(bool)</span>: Supprimer également le répertoire personnel et la boîte mail (<code>-r</code>). Défaut: False.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la suppression réussit ou si l'utilisateur n'existait pas.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="modify_user"><code>modify_user(username: str, new_username: Optional[str] = None, uid: Optional[int] = None, gid: Optional[Union[int, str]] = None, gecos: Optional[str] = None, home_dir: Optional[str] = None, move_home: bool = False, shell: Optional[str] = None, append_groups: Optional[List[str]] = None, set_groups: Optional[List[str]] = None, lock: bool = False, unlock: bool = False, expire_date: Optional[str] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Modifie un utilisateur existant via <code>usermod</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+       <dl class="param-list">
+        <dt>username</dt><dd><span class="param-type">(str)</span>: Nom de l'utilisateur à modifier.</dd>
+        <dt>new_username</dt><dd><span class="param-type">(Optional[str])</span>: Nouveau nom d'utilisateur (<code>-l</code>).</dd>
+        <dt>uid</dt><dd><span class="param-type">(Optional[int])</span>: Nouvel UID (<code>-u</code>).</dd>
+        <dt>gid</dt><dd><span class="param-type">(Optional[Union[int, str]])</span>: Nouveau GID/groupe principal (<code>-g</code>).</dd>
+        <dt>gecos</dt><dd><span class="param-type">(Optional[str])</span>: Nouveau GECOS (<code>-c</code>).</dd>
+        <dt>home_dir</dt><dd><span class="param-type">(Optional[str])</span>: Nouveau chemin du répertoire personnel (<code>-d</code>).</dd>
+        <dt>move_home</dt><dd><span class="param-type">(bool)</span>: Déplacer le contenu de l'ancien home vers le nouveau (<code>-m</code>, utiliser avec <code>home_dir</code>). Défaut: False.</dd>
+        <dt>shell</dt><dd><span class="param-type">(Optional[str])</span>: Nouveau shell de connexion (<code>-s</code>).</dd>
+        <dt>append_groups</dt><dd><span class="param-type">(Optional[List[str]])</span>: Groupes secondaires à ajouter (<code>-a -G</code>).</dd>
+        <dt>set_groups</dt><dd><span class="param-type">(Optional[List[str]])</span>: Définit la liste exacte des groupes secondaires (<code>-G</code>). Écrase <code>append_groups</code>.</dd>
+        <dt>lock</dt><dd><span class="param-type">(bool)</span>: Verrouiller le compte (<code>-L</code>). Défaut: False.</dd>
+        <dt>unlock</dt><dd><span class="param-type">(bool)</span>: Déverrouiller le compte (<code>-U</code>). Défaut: False.</dd>
+        <dt>expire_date</dt><dd><span class="param-type">(Optional[str])</span>: Date d'expiration du compte (YYYY-MM-DD) (<code>-e</code>).</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la modification réussit.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="set_password"><code>set_password(username: str, password: str, is_encrypted: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Définit ou met à jour le mot de passe d'un utilisateur via <code>chpasswd -e</code>. Crypte le mot de passe en clair si nécessaire.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+       <dl class="param-list">
+        <dt>username</dt><dd><span class="param-type">(str)</span>: Nom de l'utilisateur.</dd>
+        <dt>password</dt><dd><span class="param-type">(str)</span>: Nouveau mot de passe (clair ou crypté).</dd>
+        <dt>is_encrypted</dt><dd><span class="param-type">(bool)</span>: Indique si le <code>password</code> fourni est déjà crypté. Si False, il sera crypté avant envoi. Défaut: False.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si la mise à jour a réussi.
+      </div>
+    </section>
+
+    <h2 class="section-title">Gestion des Groupes</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_group"><code>add_group(groupname: str, gid: Optional[int] = None, system: bool = False, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute un nouveau groupe local via <code>groupadd</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+       <dl class="param-list">
+        <dt>groupname</dt><dd><span class="param-type">(str)</span>: Nom du nouveau groupe.</dd>
+        <dt>gid</dt><dd><span class="param-type">(Optional[int])</span>: GID spécifique (<code>-g</code>).</dd>
+        <dt>system</dt><dd><span class="param-type">(bool)</span>: Créer un groupe système (<code>-r</code>). Défaut: False.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès. False si le groupe existait déjà ou erreur.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="delete_group"><code>delete_group(groupname: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Supprime un groupe local via <code>groupdel</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+       <dl class="param-list">
+        <dt>groupname</dt><dd><span class="param-type">(str)</span>: Nom du groupe à supprimer.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès ou si le groupe n'existait pas.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="modify_group"><code>modify_group(groupname: str, new_name: Optional[str] = None, new_gid: Optional[int] = None, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Modifie un groupe existant (nom ou GID) via <code>groupmod</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+       <dl class="param-list">
+        <dt>groupname</dt><dd><span class="param-type">(str)</span>: Nom actuel du groupe.</dd>
+        <dt>new_name</dt><dd><span class="param-type">(Optional[str])</span>: Nouveau nom (<code>-n</code>).</dd>
+        <dt>new_gid</dt><dd><span class="param-type">(Optional[int])</span>: Nouveau GID (<code>-g</code>).</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="add_user_to_group"><code>add_user_to_group(username: str, groupname: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Ajoute un utilisateur à un groupe secondaire via <code>gpasswd -a</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+       <dl class="param-list">
+        <dt>username</dt><dd><span class="param-type">(str)</span>: Nom de l'utilisateur.</dd>
+        <dt>groupname</dt><dd><span class="param-type">(str)</span>: Nom du groupe.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès (ou si l'utilisateur était déjà membre).
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="remove_user_from_group"><code>remove_user_from_group(username: str, groupname: str, log_levels: Optional[Dict[str, str]] = None) -> bool</code></h4>
+      <p class="description">Retire un utilisateur d'un groupe secondaire via <code>gpasswd -d</code>.</p>
+      <p class="sudo-warning">Nécessite des privilèges root.</p>
+       <dl class="param-list">
+        <dt>username</dt><dd><span class="param-type">(str)</span>: Nom de l'utilisateur.</dd>
+        <dt>groupname</dt><dd><span class="param-type">(str)</span>: Nom du groupe.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">bool</span> - True si succès (ou si l'utilisateur n'était pas membre).
+      </div>
+    </section>
+
+    <h2 class="section-title">Fonctions d'Information</h2>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_user_info"><code>get_user_info(username: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]</code></h4>
+      <p class="description">Récupère les informations d'un utilisateur (UID, GID, GECOS, Home, Shell) via <code>getent passwd</code>.</p>
+       <dl class="param-list">
+        <dt>username</dt><dd><span class="param-type">(str)</span>: Nom de l'utilisateur.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Any]]</span> - Dictionnaire des informations ou None si non trouvé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_group_info"><code>get_group_info(groupname: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]</code></h4>
+      <p class="description">Récupère les informations d'un groupe (GID, membres) via <code>getent group</code>.</p>
+       <dl class="param-list">
+        <dt>groupname</dt><dd><span class="param-type">(str)</span>: Nom du groupe.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[Dict[str, Any]]</span> - Dictionnaire des informations (membres est une liste) ou None si non trouvé.
+      </div>
+    </section>
+
+    <section class="method-section">
+      <h4 class="method-title" id="get_user_groups"><code>get_user_groups(username: str, log_levels: Optional[Dict[str, str]] = None) -> Optional[List[str]]</code></h4>
+      <p class="description">Récupère la liste des groupes (primaire et secondaires) auxquels un utilisateur appartient via la commande <code>groups</code>.</p>
+       <dl class="param-list">
+        <dt>username</dt><dd><span class="param-type">(str)</span>: Nom de l'utilisateur.</dd>
+        <dt>log_levels</dt><dd><span class="param-type">(Optional[Dict[str, str]])</span>: Niveaux de log.</dd>
+      </dl>
+      <div class="return-info">
+        <span class="font-medium">Retourne:</span><span class="return-type">Optional[List[str]]</span> - Liste des noms de groupes ou None si l'utilisateur n'existe pas ou en cas d'erreur.
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

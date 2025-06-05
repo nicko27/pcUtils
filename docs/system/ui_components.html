@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Composants UI - pcUtils</title>
+    <link rel="stylesheet" href="docs_style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">&larr; Retour à l'accueil</a>
+            <h1>Composants de l'Interface Utilisateur (UI)</h1>
+            <p class="subtitle">Description des écrans et widgets principaux de l'application Textual.</p>
+        </header>
+
+        <section class="content-section">
+            <h2>Écrans Principaux (<code>Screen</code>)</h2>
+            <p>L'application utilise plusieurs écrans pour séparer les différentes étapes du processus.</p>
+
+            <div class="component-block">
+                <h3>Écran de Sélection (<span class="class-name">Choice</span>)</h3>
+                <p><strong>Fichier :</strong> <code>ui/choice_screen/choice_screen.py</code></p>
+                <p><strong>Rôle :</strong> C'est l'écran principal affiché au lancement (en mode normal). Il permet à l'utilisateur de choisir les plugins ou les séquences à exécuter.</p>
+                <p><strong>Composition :</strong></p>
+                <ul>
+                    <li>Une colonne de gauche avec des <span class="class-name">PluginCard</span> pour chaque plugin et séquence disponible.</li>
+                    <li>Une colonne de droite (<span class="class-name">SelectedPluginsPanel</span>) affichant les éléments sélectionnés.</li>
+                    <li>Des boutons "Configurer" et "Quitter".</li>
+                </ul>
+                <p><strong>Logique :</strong> Gère les clics sur les cartes, met à jour la liste de sélection, charge les séquences, et lance l'écran de configuration (<span class="class-name">PluginConfig</span>) lorsque l'utilisateur clique sur "Configurer".</p>
+            </div>
+
+            <div class="component-block">
+                <h3>Écran de Configuration (<span class="class-name">PluginConfig</span>)</h3>
+                <p><strong>Fichier :</strong> <code>ui/config_screen/config_screen.py</code></p>
+                <p><strong>Rôle :</strong> Permet à l'utilisateur de définir les paramètres pour chaque plugin sélectionné.</p>
+                <p><strong>Composition :</strong></p>
+                <ul>
+                    <li>Affiche un <span class="class-name">PluginConfigContainer</span> pour chaque instance de plugin sélectionnée.</li>
+                    <li>Affiche un conteneur pour la configuration SSH globale si au moins un plugin sélectionné supporte l'exécution distante et que celle-ci est activée.</li>
+                    <li>Des boutons "Retour" (vers l'écran de sélection) et "Exécuter".</li>
+                </ul>
+                <p><strong>Logique :</strong> Charge les définitions de champs depuis les <code>settings.yml</code> (via <span class="class-name">ConfigManager</span>), applique les configurations de séquence (via <span class="class-name">SequenceConfigManager</span>), gère les dépendances entre champs, valide les entrées, collecte les configurations finales et lance l'écran d'exécution (<span class="class-name">ExecutionScreen</span>) lorsque l'utilisateur clique sur "Exécuter". Préserve la configuration lors du retour depuis l'écran d'exécution.</p>
+            </div>
+
+            <div class="component-block">
+                <h3>Écran d'Exécution (<span class="class-name">ExecutionScreen</span>)</h3>
+                <p><strong>Fichier :</strong> <code>ui/execution_screen/execution_screen.py</code></p>
+                <p><strong>Rôle :</strong> Affiche le déroulement de l'exécution des plugins et les logs associés.</p>
+                <p><strong>Composition :</strong></p>
+                <ul>
+                    <li>Contient principalement le widget <span class="class-name">ExecutionWidget</span>.</li>
+                </ul>
+                <p><strong>Logique :</strong> Reçoit la configuration finale des plugins depuis <span class="class-name">PluginConfig</span> (ou <span class="class-name">AutoConfig</span>). Lance l'exécution (automatiquement si <code>auto_execute</code> est vrai). Gère la sortie de l'écran (retour ou fermeture de l'application).</p>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <h2>Widgets Clés (<code>Widget</code> / <code>Container</code>)</h2>
+
+            <div class="component-block">
+                <h3><span class="class-name">PluginCard</span></h3>
+                <p><strong>Fichier :</strong> <code>ui/choice_screen/plugin_card.py</code></p>
+                <p><strong>Rôle :</strong> Représente un plugin ou une séquence cliquable dans l'écran de sélection. Affiche le nom, l'icône, la description, et des indicateurs (multiple, remote).</p>
+                <p><strong>Interaction :</strong> Au clic, envoie un message (<span class="class-name">PluginSelectionChanged</span> ou <span class="class-name">AddPluginInstance</span>) à l'écran <span class="class-name">Choice</span> pour ajouter/retirer le plugin ou charger la séquence.</p>
+            </div>
+
+            <div class="component-block">
+                <h3><span class="class-name">SelectedPluginsPanel</span></h3>
+                <p><strong>Fichier :</strong> <code>ui/choice_screen/selected_plugins_panel.py</code></p>
+                <p><strong>Rôle :</strong> Panneau affichant la liste ordonnée des plugins et séquences sélectionnés par l'utilisateur.</p>
+                <p><strong>Composition :</strong> Contient des instances de <span class="class-name">PluginListItem</span>.</p>
+                <p><strong>Logique :</strong> Reçoit la liste mise à jour depuis l'écran <span class="class-name">Choice</span>. Gère la suppression d'éléments (plugin individuel ou séquence entière avec ses membres). Identifie et groupe visuellement les plugins appartenant à une séquence.</p>
+            </div>
+
+             <div class="component-block">
+                <h3><span class="class-name">PluginListItem</span></h3>
+                <p><strong>Fichier :</strong> <code>ui/choice_screen/plugin_list_item.py</code></p>
+                <p><strong>Rôle :</strong> Représente une ligne dans le <span class="class-name">SelectedPluginsPanel</span> (un plugin ou une séquence sélectionnée).</p>
+                <p><strong>Composition :</strong> Affiche le nom/icône et un bouton de suppression ('X').</p>
+                 <p><strong>Logique :</strong> Possède des attributs pour savoir s'il fait partie d'une séquence et adapte son style en conséquence. Le bouton de suppression envoie un événement géré par <span class="class-name">SelectedPluginsPanel</span>.</p>
+            </div>
+
+            <div class="component-block">
+                <h3><span class="class-name">ConfigContainer</span> / <span class="class-name">PluginConfigContainer</span></h3>
+                <p><strong>Fichiers :</strong> <code>ui/config_screen/config_container.py</code>, <code>ui/config_screen/plugin_config_container.py</code></p>
+                <p><strong>Rôle :</strong> Conteneur affichant les champs de configuration pour une source donnée (plugin ou global comme SSH). <span class="class-name">PluginConfigContainer</span> ajoute la gestion des templates.</p>
+                <p><strong>Composition :</strong> Affiche un en-tête (titre, icône, description) et une liste de <span class="class-name">ConfigField</span>.</p>
+                <p><strong>Logique :</strong> Crée les instances des champs (<span class="method-name">_create_field</span>), analyse et gère les dépendances entre eux (<span class="method-name">_analyze_field_dependencies</span>, <span class="method-name">update_dependent_fields</span>). <span class="class-name">PluginConfigContainer</span> gère l'application des templates (<span class="method-name">on_template_applied</span>) et la collecte des valeurs finales (<span class="method-name">collect_values</span>).</p>
+            </div>
+
+            <div class="component-block">
+                <h3><span class="class-name">ConfigField</span> (et sous-classes)</h3>
+                <p><strong>Fichiers :</strong> <code>ui/config_screen/config_field.py</code>, <code>text_field.py</code>, <code>ip_field.py</code>, etc.</p>
+                <p><strong>Rôle :</strong> Classe de base et implémentations spécifiques pour chaque type de champ de formulaire (texte, case à cocher, liste déroulante...).</p>
+                <p><strong>Composition :</strong> Affiche généralement un label et le widget d'entrée approprié (<code>Input</code>, <code>Checkbox</code>, <code>Select</code>...).</p>
+                <p><strong>Logique :</strong> Gère sa propre valeur interne, la validation (<span class="method-name">validate_input</span>), la mise à jour de sa valeur (<span class="method-name">set_value</span>), la récupération de sa valeur (<span class="method-name">get_value</span>), la réinitialisation (<span class="method-name">restore_default</span>), et la gestion des dépendances (initialisation via <code>_init_dependencies</code>, mise à jour des options dynamiques via <span class="method-name">update_dynamic_options</span>). Notifie le conteneur parent des changements via <span class="method-name">_notify_parent_containers</span>.</p>
+            </div>
+
+            <div class="component-block">
+                <h3><span class="class-name">ExecutionWidget</span></h3>
+                <p><strong>Fichier :</strong> <code>ui/execution_screen/execution_widget.py</code></p>
+                <p><strong>Rôle :</strong> Widget principal de l'écran d'exécution.</p>
+                <p><strong>Composition :</strong> Contient une liste de <span class="class-name">PluginContainer</span>, une zone de logs (<span class="class-name">Static</span> dans un <span class="class-name">ScrollableContainer</span>), une barre de progression globale, et des boutons de contrôle (Démarrer, Retour, Continuer en cas d'erreur).</p>
+                <p><strong>Logique :</strong> Reçoit la configuration finale. Crée les <span class="class-name">PluginContainer</span>. Orchestre l'exécution séquentielle des plugins (<span class="method-name">run_plugins</span>) en appelant <span class="method-name">execute_plugin</span> pour chaque plugin (qui choisit entre <span class="class-name">LocalExecutor</span> et <span class="class-name">SSHExecutor</span>). Met à jour la progression globale et l'état des <span class="class-name">PluginContainer</span>. Gère les options (continuer/arrêter en cas d'erreur) et les interactions des boutons.</p>
+            </div>
+
+             <div class="component-block">
+                <h3><span class="class-name">PluginContainer</span></h3>
+                <p><strong>Fichier :</strong> <code>ui/execution_screen/plugin_container.py</code></p>
+                <p><strong>Rôle :</strong> Représente un plugin en cours d'exécution (ou en attente/terminé) dans l'<span class="class-name">ExecutionWidget</span>.</p>
+                <p><strong>Composition :</strong> Affiche le nom/icône du plugin, une barre de progression individuelle, et un label de statut.</p>
+                 <p><strong>Logique :</strong> Met à jour sa barre de progression (<span class="method-name">update_progress</span>) et son statut (<span class="method-name">set_status</span>) en fonction des messages reçus (via <span class="class-name">LoggerUtils</span> qui peut le trouver via l'ID du plugin ou l'IP cible).</p>
+            </div>
+
+        </section>
+
+        <footer>
+            <p>Documentation pcUtils</p>
+        </footer>
+    </div>
+</body>
+</html>

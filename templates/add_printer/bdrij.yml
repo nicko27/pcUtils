@@ -1,0 +1,8 @@
+name: BDRIJ
+description:
+variables:
+  printer_ip: 128.81.2.186
+  printer_model: KM301iCA.yml
+  printer_name: BDRIJ
+  printer_a3: false
+  printer_all: true

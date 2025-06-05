@@ -1086,3 +1086,4 @@ class PluginConfig(Screen):
         """Gère l'action de quitter l'écran."""
         logger.debug("Quitter l'écran de configuration")
         self.app.pop_screen()
+

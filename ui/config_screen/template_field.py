@@ -508,3 +508,4 @@ class TemplateField(VerticalGroup):
         logger.debug(f"Événement watch déclenché pour le template")
         # Déléguer à la méthode principale
         self.on_select_changed(event)
+

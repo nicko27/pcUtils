@@ -57,9 +57,20 @@ class PluginConfigContainer(ConfigContainer):
 
         # Garder une référence au dictionnaire des champs spécifiques au plugin
         self.fields_by_plugin = fields_by_plugin
+        self.instance_id = None
+        if hasattr(self, "id") and self.id:
+            try:
+                self.instance_id = self.id.rsplit('_', 1)[1]
+            except Exception:
+                self.instance_id = None
+
         if plugin not in fields_by_plugin:
             fields_by_plugin[plugin] = {}
-            logger.debug(f"Nouvelle collection de champs créée pour {plugin}")
+        if self.instance_id not in fields_by_plugin[plugin]:
+            fields_by_plugin[plugin][self.instance_id] = {}
+            logger.debug(
+                f"Nouvelle collection de champs créée pour {plugin}_{self.instance_id}"
+            )
 
         # Configuration spécifique pour ce plugin
         self.plugin_config = {}
@@ -147,7 +158,7 @@ class PluginConfigContainer(ConfigContainer):
 
                     # Enregistrer le champ dans les dictionnaires
                     self.fields_by_id[unique_id] = field
-                    self.fields_by_plugin[self.source_id][field_id] = field
+                    self.fields_by_plugin[self.source_id][self.instance_id][field_id] = field
                     logger.debug(f"Champ {field_id} créé et ajouté aux dictionnaires (unique_id: {unique_id})")
 
                     # Ajouter le champ à l'interface
@@ -295,6 +306,17 @@ class PluginConfigContainer(ConfigContainer):
         Returns:
             Optional[Any]: Le champ correspondant ou None si non trouvé
         """
+
+        # Vérifier d'abord l'ID unique basé sur l'instance
+        unique_id = f"{var_name}_{self.instance_id}"
+        if unique_id in self.fields_by_id:
+            return self.fields_by_id[unique_id]
+
+        # Ensuite, rechercher dans la structure par plugin et instance
+        instance_fields = self.fields_by_plugin.get(self.source_id, {}).get(self.instance_id, {})
+        if var_name in instance_fields:
+            return instance_fields[var_name]
+
         # Stratégie 1: Recherche par nom de variable
         for field_id, field in self.fields_by_id.items():
             if (hasattr(field, 'source_id') and field.source_id == self.source_id and
@@ -306,7 +328,7 @@ class PluginConfigContainer(ConfigContainer):
         if field_id_to_check in self.fields_by_id:
             return self.fields_by_id[field_id_to_check]
 
-        # Stratégie 3: Recherche dans le dictionnaire spécifique au plugin
+        # Stratégie 3: Recherche dans le dictionnaire spécifique au plugin (sans instance)
         if var_name in self.fields_by_plugin.get(self.source_id, {}):
             return self.fields_by_plugin[self.source_id][var_name]
 

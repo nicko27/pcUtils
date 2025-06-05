@@ -106,7 +106,9 @@ class PluginConfig(Screen):
                 settings_path = get_plugin_settings_path(plugin_name)
                 logger.debug(f"Chargement config plugin depuis: {settings_path}")
                 self.config_manager.load_plugin_config(plugin_name, settings_path)
-                self.fields_by_plugin[plugin_name] = {}
+                if plugin_name not in self.fields_by_plugin:
+                    self.fields_by_plugin[plugin_name] = {}
+                self.fields_by_plugin[plugin_name][instance_id] = {}
 
                 # MODIFICATION : Récupérer les valeurs par défaut
                 default_values = self.config_manager.get_default_values(plugin_name)
@@ -378,7 +380,9 @@ class PluginConfig(Screen):
                 return container
 
             # Préparer les champs
-            self.fields_by_plugin[plugin] = {}
+            if plugin not in self.fields_by_plugin:
+                self.fields_by_plugin[plugin] = {}
+            self.fields_by_plugin[plugin][instance_id] = {}
             fields_by_id = self.fields_by_id
 
             # Récupérer les métadonnées du plugin
@@ -462,7 +466,7 @@ class PluginConfig(Screen):
             remote_field.add_class("remote-execution-checkbox")
 
             # Enregistrer pour future référence
-            self.fields_by_plugin[plugin_name][remote_field_id] = remote_field
+            self.fields_by_plugin[plugin_name][instance_id][remote_field_id] = remote_field
             self.plugins_remote_enabled[f"{plugin_name}_{instance_id}"] = remote_field
 
             # Associer au conteneur
@@ -525,17 +529,17 @@ class PluginConfig(Screen):
             for plugin_id, plugin_config in self.current_config.items():
                 logger.debug(f"Restauration pour {plugin_id}")
 
-                # Extraire le nom du plugin et la configuration
-                plugin_name = plugin_id.split('_')[0]
+                # Extraire le nom du plugin et l'instance
+                plugin_name, instance_id = plugin_id.rsplit('_', 1)
                 config = plugin_config.get('config', {})
 
                 # Mettre à jour chaque champ
                 for param_name, value in config.items():
-                    field_id = f"{plugin_name}.{param_name}"
+                    unique_field_id = f"{param_name}_{instance_id}"
 
-                    if field_id in self.fields_by_id:
-                        field = self.fields_by_id[field_id]
-                        logger.debug(f"Restauration du champ {field_id} avec {value}")
+                    if unique_field_id in self.fields_by_id:
+                        field = self.fields_by_id[unique_field_id]
+                        logger.debug(f"Restauration du champ {unique_field_id} avec {value}")
 
                         # Mettre à jour la valeur
                         if hasattr(field, 'set_value'):

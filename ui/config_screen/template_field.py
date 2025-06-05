@@ -231,6 +231,24 @@ class TemplateField(VerticalGroup):
         Returns:
             Optional[Any]: Champ trouvé ou None
         """
+        from .plugin_config_container import PluginConfigContainer
+        parent = next((a for a in self.ancestors_with_self if isinstance(a, PluginConfigContainer)), None)
+        instance_id = None
+        fields_by_plugin = {}
+        if parent:
+            instance_id = getattr(parent, 'instance_id', None)
+            fields_by_plugin = getattr(parent, 'fields_by_plugin', {})
+
+        if instance_id is not None:
+            unique_id = f"{var_name}_{instance_id}"
+            if unique_id in self.fields_by_id:
+                logger.debug(f"Champ trouvé pour variable '{var_name}' via unique_id")
+                return self.fields_by_id[unique_id]
+
+            if var_name in fields_by_plugin.get(self.plugin_name, {}).get(instance_id, {}):
+                logger.debug(f"Champ trouvé pour variable '{var_name}' via fields_by_plugin")
+                return fields_by_plugin[self.plugin_name][instance_id][var_name]
+
         # Stratégie 1: Recherche directe par variable_name
         for field_id, field in self.fields_by_id.items():
             if hasattr(field, 'source_id') and field.source_id == self.plugin_name and \

@@ -328,9 +328,10 @@ class PluginConfigContainer(ConfigContainer):
         if field_id_to_check in self.fields_by_id:
             return self.fields_by_id[field_id_to_check]
 
-        # Stratégie 3: Recherche dans le dictionnaire spécifique au plugin (sans instance)
-        if var_name in self.fields_by_plugin.get(self.source_id, {}):
-            return self.fields_by_plugin[self.source_id][var_name]
+        # Stratégie 3: Recherche dans toutes les instances de ce plugin
+        for _instance_id, instance_fields in self.fields_by_plugin.get(self.source_id, {}).items():
+            if var_name in instance_fields:
+                return instance_fields[var_name]
 
         # Non trouvé
         return None

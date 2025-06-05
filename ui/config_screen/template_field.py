@@ -249,13 +249,8 @@ class TemplateField(VerticalGroup):
                 logger.debug(f"Champ trouvé pour variable '{var_name}' via fields_by_plugin")
                 return fields_by_plugin[self.plugin_name][instance_id][var_name]
 
-            # Rechercher dans toutes les instances de ce plugin
-            for _id, instance_fields in fields_by_plugin.get(self.plugin_name, {}).items():
-                if var_name in instance_fields:
-                    logger.debug(
-                        f"Champ trouvé pour variable '{var_name}' via autre instance {_id}"
-                    )
-                    return instance_fields[var_name]
+            # Ne pas parcourir les autres instances : chaque instance doit rester
+            # isolée pour éviter tout mélange de configuration.
 
         # Stratégie 1: Recherche directe par variable_name
         for field_id, field in self.fields_by_id.items():

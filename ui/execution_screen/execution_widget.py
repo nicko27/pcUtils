@@ -891,9 +891,8 @@ class ExecutionWidget(Container):
                     corrected_config[plugin_id] = plugin_data
                 else:
                     # Reconstruire la structure
-                    parts = plugin_id.split('_')
-                    plugin_name = parts[0]
-                    instance_id = int(parts[-1]) if parts[-1].isdigit() else 0
+                    plugin_name, instance_part = plugin_id.rsplit('_', 1)
+                    instance_id = int(instance_part) if instance_part.isdigit() else 0
 
                     # Récupérer les paramètres du plugin
                     plugin_folder = get_plugin_folder_name(plugin_name)

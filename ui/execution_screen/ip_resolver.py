@@ -415,9 +415,30 @@ class IPResolver:
             return False
 
     def is_ip_match(self, ip: str, pattern: str) -> bool:
-        """Vérifie si une IP correspond à un motif avec jokers."""
-        regex_pattern = pattern.replace('.', '\\.').replace('*', '.*')
-        return bool(re.match(f'^{regex_pattern}$', ip))
+        """Vérifie si une IP correspond à un motif avec jokers ou plages."""
+        ip_parts = ip.split('.')
+        pat_parts = pattern.split('.')
+        if len(ip_parts) != 4 or len(pat_parts) != 4:
+            return False
+
+        for ip_part, pat_part in zip(ip_parts, pat_parts):
+            if pat_part == '*':
+                continue
+            if '-' in pat_part:
+                try:
+                    start, end = map(int, pat_part.split('-', 1))
+                    ip_val = int(ip_part)
+                    if start <= ip_val <= end:
+                        continue
+                    else:
+                        return False
+                except ValueError:
+                    return False
+            else:
+                if ip_part != pat_part:
+                    return False
+
+        return True
 
     def _cache_result(self, cache_key: str, ips: List[str]) -> None:
         """

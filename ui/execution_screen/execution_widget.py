@@ -26,7 +26,7 @@ from .logger_utils import LoggerUtils
 from ..utils.messaging import Message, MessageType
 from ..choice_screen.plugin_utils import get_plugin_folder_name
 from ..utils.logging import get_logger
-from ..ssh_manager.ip_utils import get_target_ips
+from .ip_resolver import get_target_ips
 
 logger = get_logger('execution_widget')
 
@@ -577,8 +577,8 @@ class ExecutionWidget(Container):
 
         # Si le plugin a plusieurs IPs
         if ssh_ips and ('*' in ssh_ips or ',' in ssh_ips):
-            # Obtenir la liste des IPs cibles
-            target_ips = get_target_ips(ssh_ips, ssh_exception_ips)
+            # Obtenir la liste des IPs cibles via IPResolver
+            target_ips = get_target_ips({'ssh_ips': ssh_ips, 'ssh_exception_ips': ssh_exception_ips})
             logger.debug(f"Plugin SSH {plugin_id} avec {len(target_ips)} IPs: {target_ips}")
 
             if target_ips:

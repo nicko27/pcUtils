@@ -435,12 +435,13 @@ class AutoConfig:
         try:
             # Vérifier si c'est un plugin SSH
             if 'ssh_ips' in config['config']:
-                # Gérer les IPs multiples ou wildcards
-                from ..ssh_manager.ip_utils import get_target_ips
-                target_ips = get_target_ips(
-                    config['config'].get('ssh_ips', ''), 
-                    config['config'].get('ssh_exception_ips', [])
-                )
+                # Gérer les IPs multiples ou wildcards via IPResolver
+                from ..execution_screen.ip_resolver import get_target_ips
+                ip_config = {
+                    'ssh_ips': config['config'].get('ssh_ips', ''),
+                    'ssh_exception_ips': config['config'].get('ssh_exception_ips', [])
+                }
+                target_ips = get_target_ips(ip_config)
                 if target_ips:
                     config['config']['ssh_ips'] = ','.join(target_ips)
                     logger.debug(f"IPs SSH traitées: {config['config']['ssh_ips']}")

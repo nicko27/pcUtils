@@ -31,7 +31,7 @@ try:
     from .file_content_handler import FileContentHandler
     from .root_credentials_manager import RootCredentialsManager
     from ..ssh_manager.ssh_config_loader import SSHConfigLoader
-    from ..ssh_manager.ip_utils import get_target_ips
+    from .ip_resolver import get_target_ips
     INTERNAL_MODULES_AVAILABLE = True
 except ImportError:
     INTERNAL_MODULES_AVAILABLE = False
@@ -273,22 +273,14 @@ class SSHExecutor:
         Returns:
             List[str]: Liste des adresses IP cibles
         """
-        target_ips = []
+        # Fusionner la configuration spécifique et globale
+        combined = {}
+        combined.update(config)
+        combined.update(plugin_config)
 
-        # Chercher dans la configuration du plugin
-        for key in ['ssh_ips', 'target_ip']:
-            if key in plugin_config:
-                value = plugin_config[key]
-                if isinstance(value, str):
-                    target_ips.extend(ip.strip() for ip in value.split(',') if ip.strip())
-                elif isinstance(value, list):
-                    target_ips.extend(ip.strip() for ip in value if ip.strip())
+        # Utiliser le résolveur d'IP pour gérer wildcards et exclusions
+        target_ips = get_target_ips(combined)
 
-        # Si pas trouvé, utiliser la fonction d'utilitaire
-        if not target_ips:
-            target_ips = get_target_ips(config)
-
-        # Filtrer les IPs vides ou None
         return [ip for ip in target_ips if ip and ip.strip()]
 
     def _get_ssh_credentials(self, ssh_config: Dict, plugin_config: Dict) -> Tuple[str, str, int]:
